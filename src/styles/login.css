@@ -1,0 +1,73 @@
+/* ============================================================
+   Login screen — split hero + borderless auth card floating over
+   a canvas "data lifecycle" background. Ported from the prototype.
+   ============================================================ */
+.lg-root { position: relative; min-height: 100vh; background: #fff; color: var(--cds-text-primary); overflow: hidden; }
+.lg-net { position: fixed; inset: 0; z-index: 0; display: block; }
+.lg-wash { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: radial-gradient(70% 60% at 42% 42%, transparent 55%, rgba(255, 255, 255, .82) 100%); }
+/* the wall: a spring divider drawn on the canvas; this element only reserves the
+   layout boundary + is measured for the wall x. */
+.lg-wall { position: fixed; top: 0; bottom: 0; left: 58%; width: 1px; z-index: 2; pointer-events: none; background: transparent; }
+
+.lg-topright { position: fixed; top: 34px; right: 48px; z-index: 6; font-size: .8125rem; color: var(--cds-text-secondary); }
+.lg-topright a { color: var(--cds-link-primary); text-decoration: none; font-weight: 600; }
+.lg-topright a:hover { text-decoration: underline; }
+
+.lg-stage { position: relative; z-index: 3; min-height: 100vh; display: grid; grid-template-columns: 58% 1fr; align-items: center; }
+
+/* hero */
+.lg-hero { padding: 0 48px 0 88px; }
+.lg-kicker { display: inline-flex; align-items: center; gap: 10px; font-size: .6875rem; letter-spacing: .26em; text-transform: uppercase; color: var(--cds-blue-60); margin-bottom: 24px; font-weight: 600; }
+.lg-kicker::before { content: ""; width: 32px; height: 2px; background: var(--cds-blue-60); display: inline-block; }
+.lg-hero h1 { margin: 0; font-weight: 300; font-size: clamp(2.6rem, 4.8vw, 4.5rem); line-height: 1.02; letter-spacing: -.022em; color: var(--cds-text-primary); }
+.lg-hero h1 .accent { font-weight: 600; color: var(--cds-blue-60); }
+.lg-hero p { margin: 26px 0 0; max-width: 38ch; font-size: 1.0625rem; line-height: 1.55; color: var(--cds-text-secondary); }
+.lg-feats { margin: 38px 0 0; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px 28px; max-width: 520px; }
+.lg-feat { display: flex; align-items: flex-start; gap: 12px; }
+.lg-feat .ic { flex: 0 0 36px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; background: rgba(15, 98, 254, .08); color: var(--cds-blue-60); }
+.lg-feat .t { font-size: .9375rem; font-weight: 600; color: var(--cds-text-primary); line-height: 1.25; }
+.lg-feat .d { font-size: .8125rem; color: var(--cds-text-secondary); margin-top: 2px; line-height: 1.4; }
+
+/* auth card — borderless, floats in the clean zone right of the wall, centered */
+.lg-auth { padding: 0; display: flex; justify-content: center; }
+.lg-card { width: 380px; max-width: 100%; background: transparent; border: none; padding: 0; position: relative; }
+.lg-card__brand { margin-bottom: 44px; }
+.lg-card h2 { margin: 0 0 6px; font-size: 2rem; font-weight: 300; letter-spacing: -.018em; }
+.lg-card .sub { margin: 0 0 38px; font-size: .875rem; color: var(--cds-text-secondary); }
+.lg-fld { margin-bottom: 26px; }
+.lg-fld label { display: block; font-size: .6875rem; letter-spacing: .08em; text-transform: uppercase; color: var(--cds-text-secondary); margin-bottom: 8px; }
+.lg-ctrl { position: relative; }
+.lg-fld input { width: 100%; height: 44px; border: none; border-bottom: 1.5px solid var(--cds-border-strong-01);
+  background: transparent; color: var(--cds-text-primary); font-family: var(--cds-font-sans); font-size: 1.0625rem;
+  padding: 0 40px 0 0; outline: none; transition: border-color var(--cds-duration-moderate-01) var(--cds-ease-standard-productive); }
+.lg-fld input::placeholder { color: var(--cds-text-placeholder); }
+.lg-fld input:focus { border-bottom-color: var(--cds-blue-60); border-bottom-width: 2px; }
+.lg-reveal { position: absolute; right: 0; bottom: 6px; width: 34px; height: 34px; border: none; background: transparent; color: var(--cds-icon-secondary); cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.lg-reveal:hover { color: var(--cds-text-primary); }
+.lg-row { display: flex; align-items: center; justify-content: space-between; margin: 6px 0 32px; font-size: .8125rem; }
+.lg-chk { display: flex; align-items: center; gap: 8px; color: var(--cds-text-secondary); cursor: pointer; }
+.lg-chk input { width: 16px; height: 16px; accent-color: var(--cds-blue-60); }
+.lg-link { color: var(--cds-link-primary); text-decoration: none; }
+.lg-link:hover { text-decoration: underline; }
+.lg-submit { display: flex; align-items: center; justify-content: space-between; width: 100%; height: 54px; border: none;
+  background: var(--cds-blue-60); color: #fff; font-family: var(--cds-font-sans); font-size: 1rem; padding: 0 20px; cursor: pointer;
+  transition: background var(--cds-duration-moderate-01) var(--cds-ease-standard-productive), transform var(--cds-duration-fast-02) var(--cds-ease-standard-productive), box-shadow var(--cds-duration-moderate-01) var(--cds-ease-standard-productive); }
+.lg-submit:hover { background: #0050e6; }
+.lg-or { display: flex; align-items: center; gap: 14px; margin: 24px 0 18px; color: var(--cds-text-secondary); font-size: .75rem; letter-spacing: .04em; }
+.lg-or::before, .lg-or::after { content: ""; flex: 1; height: 1px; background: var(--cds-border-subtle-01, #e0e0e0); }
+.lg-sso { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; height: 48px; cursor: pointer;
+  border: 1px solid var(--cds-border-strong-01); background: transparent; color: var(--cds-text-primary); font-family: var(--cds-font-sans); font-size: .875rem;
+  transition: background var(--cds-duration-fast-02) var(--cds-ease-standard-productive); }
+.lg-sso:hover { background: rgba(22, 22, 22, .04); }
+.lg-legal { margin-top: 34px; font-size: .6875rem; color: var(--cds-text-secondary); line-height: 1.5; }
+
+@media (max-width: 980px) {
+  .lg-root { overflow: auto; }
+  .lg-wall { display: none; }
+  .lg-stage { grid-template-columns: 1fr; padding: 104px 0 56px; gap: 44px; }
+  .lg-hero { padding: 0 32px; }
+  .lg-auth { padding: 0 32px; justify-content: center; }
+  .lg-feats { grid-template-columns: 1fr; }
+  .lg-topright { right: 24px; }
+}

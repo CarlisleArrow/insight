@@ -1,0 +1,35 @@
+# === AUTO-GENERATED FROM model {{.ModelID}} ({{.ModelName}}). DO NOT EDIT. ===
+# Airflow DAG orchestrating the generated ETL scripts in dependency order
+# (bronze -> silver dim/fact -> gold agg -> clickhouse). Abstracted from
+# dag_complete_multi_table_etl.py.
+from datetime import datetime, timedelta
+from airflow import DAG
+from airflow.operators.bash import BashOperator
+
+GENERATED_DIR = "/opt/bitnami/spark/jobs/generated"
+
+default_args = {
+    "owner": "{{.Owner}}",
+    "retries": 2,
+    "retry_delay": timedelta(minutes=5),
+}
+
+with DAG(
+    dag_id="model_{{.DagID}}",
+    description="Generated ETL for model {{.ModelName}}",
+    schedule_interval="{{.Schedule}}",
+    start_date=datetime(2024, 1, 1),
+    catchup=False,
+    default_args=default_args,
+    tags=["generated", "modeling-as-code", "{{.Domain}}"],
+) as dag:
+
+    tasks = {}
+{{range .Tasks}}    tasks["{{.ID}}"] = BashOperator(
+        task_id="{{.ID}}",
+        bash_command=f"spark-submit {GENERATED_DIR}/{{.Script}}",
+    )
+{{end}}
+    # dependency edges (upstream >> downstream)
+{{range .Edges}}    tasks["{{.From}}"] >> tasks["{{.To}}"]
+{{end}}

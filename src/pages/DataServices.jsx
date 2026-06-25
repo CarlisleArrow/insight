@@ -1,0 +1,490 @@
+import { useState, useEffect } from 'react';
+import {
+  Button, Tag, TextInput, Checkbox, Tile, TileGroup, RadioTile, Select, SelectItem,
+  InlineNotification, Tabs, TabList, Tab, TabPanels, TabPanel, CodeSnippet,
+  ComposedModal, ModalHeader, ModalBody, ModalFooter,
+  ProgressIndicator, ProgressStep,
+  StructuredListWrapper, StructuredListBody, StructuredListRow, StructuredListCell,
+} from '@carbon/react';
+import Icon, { iconFor } from '../components/Icon.jsx';
+import { PageHeader, SubSwitch, CarbonTable, StatusDot, RowMenu, EmptyState } from '../components/shared.jsx';
+import * as api from '../data/api.js';
+import { tr, trList } from '../i18n.js';
+
+/* Data Services (§15 Data-as-a-Service): publish internal data as governed,
+   read-only external REST APIs. The contract whitelist + L6 masking is the
+   security boundary — "safe even without auth". */
+
+const AUTH_TAG = { none: 'cool-gray', apikey: 'blue', oauth: 'teal', jwt: 'purple' };
+const AUTH_LABEL = { none: 'No auth', apikey: 'API Key', oauth: 'OAuth 2.0', jwt: 'JWT' };
+const STATUS_KIND = { published: 'success', draft: 'draft', deprecated: 'gray', retired: 'gray' };
+
+/* ============================ API GALLERY ============================ */
+function ApiGallery({ rows, onOpen, onPublish, onRefresh, notify, lang }) {
+  const headers = [
+    { key: 'name', header: tr(lang, 'API name') },
+    { key: 'endpoint', header: tr(lang, 'Endpoint path'), mono: true },
+    { key: 'source_ref', header: tr(lang, 'Source'), mono: true },
+    { key: 'auth_mode', header: tr(lang, 'Auth mode') },
+    { key: 'status', header: tr(lang, 'Status') },
+    { key: 'rate_limit_rpm', header: tr(lang, 'Rate limit') },
+    { key: 'owner', header: tr(lang, 'Owner') },
+    { key: 'ofw', header: '' },
+  ];
+  if (rows.length === 0) {
+    return (
+      <EmptyState icon="apps" title={tr(lang, 'No data APIs published yet')}
+        sub={tr(lang, 'Expose a governed, read-only API over a semantic model or table. Field whitelisting and masking are enforced for you.')}
+        action={<Button kind="primary" renderIcon={iconFor('add')} onClick={onPublish}>{tr(lang, 'Publish your first data API')}</Button>} />
+    );
+  }
+  return (
+    <CarbonTable
+      headers={headers}
+      rows={rows}
+      withPagination
+      searchPlaceholder={tr(lang, 'Search APIs by name or source')}
+      onRowClick={onOpen}
+      actions={(
+        <>
+          <Button kind="ghost" size="lg" hasIconOnly renderIcon={iconFor('renew')} iconDescription={tr(lang, 'Refresh')} onClick={onRefresh} />
+          <Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={onPublish}>{tr(lang, 'Publish API')}</Button>
+        </>
+      )}
+      renderCell={(r, k) => {
+        if (k === 'name') return <a href="#" onClick={(e) => { e.preventDefault(); onOpen(r); }}>{r.name}</a>;
+        if (k === 'endpoint') return `/data-api/v1/${r.name}`;
+        if (k === 'auth_mode') return <Tag type={AUTH_TAG[r.auth_mode] || 'cool-gray'} size="sm">{tr(lang, AUTH_LABEL[r.auth_mode] || r.auth_mode)}</Tag>;
+        if (k === 'status') return <StatusDot kind={STATUS_KIND[r.status] || 'gray'}>{tr(lang, r.status)}</StatusDot>;
+        if (k === 'rate_limit_rpm') return r.rate_limit_rpm ? `${r.rate_limit_rpm}/min` : '—';
+        if (k === 'ofw') return <RowMenu onView={() => onOpen(r)} />;
+        return r[k];
+      }}
+    />
+  );
+}
+
+/* ============================ PUBLISH WIZARD ============================ */
+const WIZ_STEPS = [
+  ['Source', 'Model or table'],
+  ['Field whitelist', 'What is exposed'],
+  ['Parameters', 'Query & paging'],
+  ['Auth mode', 'How callers prove identity'],
+  ['Limits', 'Rate & quota'],
+  ['Review & publish', 'Confirm contract'],
+];
+const FILTER_OPS = ['=', '>', '<', 'in', 'like', 'between'];
+
+// sampleValue renders a placeholder for a column by its declared dtype.
+function sampleValue(type) {
+  const t = String(type || '').toLowerCase();
+  if (/int|bigint|long/.test(t)) return 142;
+  if (/double|float|dec|real|num/.test(t)) return 0.962;
+  if (/bool/.test(t)) return true;
+  if (/date|time/.test(t)) return '2026-06-21T08:14:00Z';
+  return 'P1';
+}
+
+function PublishWizard({ onClose, onDone, notify, lang }) {
+  const [step, setStep] = useState(0);
+  const [datasets, setDatasets] = useState([]);   // real ns.table list
+  const [cols, setCols] = useState([]);            // [{col,type}] of the chosen source
+  const [colCfg, setColCfg] = useState({});        // { col: { exposed, as } }
+  const [filters, setFilters] = useState([]);      // [{column, op, required, default}]
+  const [sort, setSort] = useState([]);            // exposed cols allowed to sort
+  const [spec, setSpec] = useState({
+    name: '', version: 'v1', source_type: 'table', source_ref: '',
+    auth_mode: 'none', oauth_issuer: 'https://sso.ipas/realms/ipas', oauth_client: '', oauth_scope: 'data-api:read',
+    jwt_issuer: 'https://sso.ipas/realms/ipas', jwt_aud: 'data-api',
+    rate_limit_rpm: 600, daily_quota: 500000, max_concurrency: 20,
+    page_default: 50, page_max: 500, description: '',
+  });
+  const last = step === WIZ_STEPS.length - 1;
+  const set = (k, v) => setSpec((s) => ({ ...s, [k]: v }));
+
+  // Load the real registered Iceberg datasets once.
+  useEffect(() => {
+    api.getDatasets().then((ts) => setDatasets((ts || []).map((t) => `${t.namespace}.${t.name}`))).catch(() => setDatasets([]));
+  }, []);
+
+  // When a source is chosen, load its real columns and default everything exposed.
+  const chooseSource = (ref) => {
+    set('source_ref', ref);
+    const [ns, table] = String(ref).split('.');
+    if (!ns || !table) { setCols([]); return; }
+    api.getDatasetSchema(ns, table)
+      .then((sc) => {
+        const cs = (sc.columns || []).map((c) => ({ col: c.col, type: c.type }));
+        setCols(cs);
+        setColCfg(Object.fromEntries(cs.map((c) => [c.col, { exposed: true, as: c.col }])));
+        setFilters([]); setSort([]);
+      })
+      .catch(() => { setCols([]); setColCfg({}); });
+  };
+
+  const exposed = cols.filter((c) => colCfg[c.col]?.exposed);
+
+  const publish = async () => {
+    try {
+      const body = {
+        name: spec.name, version: spec.version, source_type: spec.source_type, source_ref: spec.source_ref,
+        allowed_columns: exposed.map((c) => ({ src: c.col, exposed_as: colCfg[c.col].as || c.col })),
+        allowed_filters: filters.map((f) => ({ column: f.column, ops: [f.op], required: !!f.required, default: f.default || null })),
+        pagination: { default_size: Number(spec.page_default) || 50, max_size: Number(spec.page_max) || 500 },
+        sort_whitelist: sort,
+        auth_mode: spec.auth_mode,
+        rate_limit_rpm: Number(spec.rate_limit_rpm), daily_quota: Number(spec.daily_quota), max_concurrency: Number(spec.max_concurrency),
+        status: 'published', owner: '', description: spec.description,
+      };
+      await api.dataApis.create(body);
+      notify && notify({ kind: 'success', title: tr(lang, 'API published'), subtitle: `/data-api/v1/${spec.name}` });
+      onDone();
+    } catch (err) {
+      notify && notify({ kind: 'error', title: tr(lang, 'Publish failed.'), subtitle: (err.detail || String(err.message || err)) });
+    }
+  };
+
+  const canNext = (step === 0 && spec.name && spec.source_ref) || (step === 1 && exposed.length > 0) || step > 1;
+
+  return (
+    <ComposedModal open size="lg" onClose={onClose}>
+      <ModalHeader label={tr(lang, 'Data Services')} title={tr(lang, 'Publish data API')} />
+      <ModalBody hasForm>
+        <ProgressIndicator currentIndex={step} spaceEqually style={{ marginBottom: 28 }}>
+          {WIZ_STEPS.map(([t, s], i) => <ProgressStep key={t} label={tr(lang, t)} secondaryLabel={tr(lang, s)} onClick={() => setStep(i)} />)}
+        </ProgressIndicator>
+
+        {/* ---- Step 0: source + endpoint ---- */}
+        {step === 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div className="w-row">
+              <Select id="ds-name" labelText={tr(lang, 'Source type')} value={spec.source_type} onChange={(e) => set('source_type', e.target.value)}>
+                <SelectItem value="table" text={tr(lang, 'Iceberg table')} />
+                <SelectItem value="semantic" text={tr(lang, 'Semantic model')} />
+                <SelectItem value="dataset" text={tr(lang, 'Saved dataset')} />
+              </Select>
+              <Select id="ds-ref" labelText={tr(lang, 'Source reference')} value={spec.source_ref} onChange={(e) => chooseSource(e.target.value)}>
+                <SelectItem value="" text={datasets.length ? tr(lang, 'Select a source…') : tr(lang, '(loading…)')} />
+                {datasets.map((d) => <SelectItem key={d} value={d} text={d} />)}
+              </Select>
+            </div>
+            <div className="w-row">
+              <TextInput id="ds-apiname" labelText={tr(lang, 'API name (endpoint path)')} placeholder="che-quality-api" value={spec.name} onChange={(e) => set('name', e.target.value.replace(/[^a-z0-9-]/g, ''))} />
+              <TextInput id="ds-ver" labelText={tr(lang, 'Version')} value={spec.version} onChange={(e) => set('version', e.target.value)} />
+            </div>
+            <TextInput id="ds-endpoint" labelText={tr(lang, 'Endpoint URL')} value={spec.name ? `/data-api/v1/${spec.name}` : ''} placeholder="/data-api/v1/…" readOnly />
+            <div className="w-fld"><label className="cds--label">{tr(lang, 'Resolved fields')} ({cols.length})</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {cols.length === 0 ? <span style={{ fontSize: '.75rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Pick a source to resolve its fields.')}</span>
+                  : cols.map((c) => <Tag key={c.col} type="cool-gray" size="sm"><span className="ip-mono">{c.col}</span></Tag>)}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Step 1: field whitelist + outward rename ---- */}
+        {step === 1 && (
+          <div>
+            <p style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)', margin: '0 0 14px' }}>
+              {tr(lang, 'Only checked fields are exposed. Unchecked fields are invisible to callers — not in the schema, not in errors.')}
+            </p>
+            {cols.length === 0
+              ? <Tile><span style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)' }}>{tr(lang, 'Pick a source on the first step to load fields.')}</span></Tile>
+              : (
+                <div style={{ border: '1px solid var(--wire-border)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '32px 1fr 100px 1.2fr', gap: 10, padding: '8px 14px', borderBottom: '1px solid var(--wire-border)', fontSize: '.6875rem', fontWeight: 600, letterSpacing: '.16px', color: 'var(--cds-text-secondary)', textTransform: 'uppercase' }}>
+                    <span /><span>{tr(lang, 'Field')}</span><span>{tr(lang, 'Type')}</span><span>{tr(lang, 'Exposed as (rename)')}</span>
+                  </div>
+                  {cols.map((c) => {
+                    const cfg = colCfg[c.col] || { exposed: false, as: c.col };
+                    return (
+                      <div key={c.col} style={{ display: 'grid', gridTemplateColumns: '32px 1fr 100px 1.2fr', gap: 10, padding: '6px 14px', alignItems: 'center', borderBottom: '1px solid var(--cds-layer-01)' }}>
+                        <Checkbox id={`exp-${c.col}`} labelText="" checked={cfg.exposed} onChange={(_, { checked }) => setColCfg((m) => ({ ...m, [c.col]: { ...cfg, exposed: checked } }))} />
+                        <span className="ip-mono" style={{ fontSize: '.8125rem' }}>{c.col}</span>
+                        <span className="ip-mono" style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)' }}>{c.type}</span>
+                        <TextInput size="sm" id={`as-${c.col}`} labelText="" value={cfg.as} disabled={!cfg.exposed} onChange={(e) => setColCfg((m) => ({ ...m, [c.col]: { ...cfg, as: e.target.value } }))} />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
+        )}
+
+        {/* ---- Step 2: parameters + paging + sort ---- */}
+        {step === 2 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div className="w-fld"><label className="cds--label">{tr(lang, 'Allowed query parameters')}</label>
+              <div style={{ border: '1px solid var(--wire-border)', padding: '10px 14px' }}>
+                {filters.length === 0 && <div style={{ fontSize: '.75rem', color: 'var(--cds-text-placeholder)', marginBottom: 8 }}>{tr(lang, 'No parameters — callers can only page. Add one to allow filtering.')}</div>}
+                {filters.map((f, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr auto 32px', gap: 8, alignItems: 'end', marginBottom: 8 }}>
+                    <Select size="sm" id={`f-col-${i}`} labelText={i === 0 ? tr(lang, 'Field') : ''} value={f.column} onChange={(e) => setFilters((fs) => fs.map((x, j) => j === i ? { ...x, column: e.target.value } : x))}>
+                      {exposed.map((c) => <SelectItem key={c.col} value={c.col} text={c.col} />)}
+                    </Select>
+                    <Select size="sm" id={`f-op-${i}`} labelText={i === 0 ? tr(lang, 'Operator') : ''} value={f.op} onChange={(e) => setFilters((fs) => fs.map((x, j) => j === i ? { ...x, op: e.target.value } : x))}>
+                      {FILTER_OPS.map((o) => <SelectItem key={o} value={o} text={o} />)}
+                    </Select>
+                    <TextInput size="sm" id={`f-def-${i}`} labelText={i === 0 ? tr(lang, 'Default') : ''} placeholder="—" value={f.default} onChange={(e) => setFilters((fs) => fs.map((x, j) => j === i ? { ...x, default: e.target.value } : x))} />
+                    <Checkbox id={`f-req-${i}`} labelText={tr(lang, 'Required')} checked={f.required} onChange={(_, { checked }) => setFilters((fs) => fs.map((x, j) => j === i ? { ...x, required: checked } : x))} />
+                    <Button kind="ghost" size="sm" hasIconOnly renderIcon={iconFor('subtract')} iconDescription={tr(lang, 'Remove')} onClick={() => setFilters((fs) => fs.filter((_, j) => j !== i))} />
+                  </div>
+                ))}
+                <Button kind="ghost" size="sm" renderIcon={iconFor('add')} disabled={exposed.length === 0}
+                  onClick={() => setFilters((fs) => [...fs, { column: exposed[0]?.col || '', op: '=', required: false, default: '' }])}>{tr(lang, 'Add parameter')}</Button>
+              </div>
+            </div>
+            <div className="w-row">
+              <TextInput id="ds-pgs" labelText={tr(lang, 'Default page size')} value={String(spec.page_default)} onChange={(e) => set('page_default', e.target.value)} />
+              <TextInput id="ds-mpgs" labelText={tr(lang, 'Max page size')} value={String(spec.page_max)} onChange={(e) => set('page_max', e.target.value)} />
+            </div>
+            <div className="w-fld"><label className="cds--label">{tr(lang, 'Sort whitelist')}</label>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {exposed.length === 0 ? <span style={{ fontSize: '.75rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Expose fields first.')}</span>
+                  : exposed.map((c) => {
+                    const on = sort.includes(c.col);
+                    return <Tag key={c.col} type={on ? 'blue' : 'outline'} size="sm" style={{ cursor: 'pointer' }}
+                      onClick={() => setSort((s) => on ? s.filter((x) => x !== c.col) : [...s, c.col])}>{c.col}</Tag>;
+                  })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ---- Step 3: auth mode + per-mode config ---- */}
+        {step === 3 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <TileGroup name="auth" valueSelected={spec.auth_mode} legend={tr(lang, 'Auth mode')} onChange={(v) => set('auth_mode', v)}>
+              <RadioTile value="none">{tr(lang, 'No auth (public read-only) — anyone can call with no credentials.')}</RadioTile>
+              <RadioTile value="apikey">{tr(lang, 'API Key — issue keys with scope and expiry.')}</RadioTile>
+              <RadioTile value="oauth">{tr(lang, 'OAuth 2.0 (client credentials) — reuse Keycloak.')}</RadioTile>
+              <RadioTile value="jwt">{tr(lang, 'JWT — validate signed tokens against a configured issuer.')}</RadioTile>
+            </TileGroup>
+            {spec.auth_mode === 'none' && (
+              <InlineNotification kind="info" lowContrast hideCloseButton title={tr(lang, 'No auth, still safe by contract')}
+                subtitle={tr(lang, 'This API needs no credentials, but can only ever return whitelisted fields, and masking still applies. Anonymous callers never see masked or unexposed columns.')} />
+            )}
+            {spec.auth_mode === 'apikey' && (
+              <InlineNotification kind="info" lowContrast hideCloseButton title={tr(lang, 'Keys are minted after publish')}
+                subtitle={tr(lang, 'Publish first, then create one or more API keys from the API’s Authentication tab. Keys are shown once.')} />
+            )}
+            {spec.auth_mode === 'oauth' && (
+              <div className="w-row" style={{ flexWrap: 'wrap', gap: 16 }}>
+                <TextInput id="oa-iss" labelText={tr(lang, 'Issuer (token URL)')} value={spec.oauth_issuer} onChange={(e) => set('oauth_issuer', e.target.value)} />
+                <TextInput id="oa-cli" labelText={tr(lang, 'Client ID')} value={spec.oauth_client} onChange={(e) => set('oauth_client', e.target.value)} />
+                <TextInput id="oa-sco" labelText={tr(lang, 'Scope')} value={spec.oauth_scope} onChange={(e) => set('oauth_scope', e.target.value)} />
+              </div>
+            )}
+            {spec.auth_mode === 'jwt' && (
+              <div className="w-row">
+                <TextInput id="jwt-iss" labelText={tr(lang, 'Issuer (iss)')} value={spec.jwt_issuer} onChange={(e) => set('jwt_issuer', e.target.value)} />
+                <TextInput id="jwt-aud" labelText={tr(lang, 'Audience (aud)')} value={spec.jwt_aud} onChange={(e) => set('jwt_aud', e.target.value)} />
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ---- Step 4: limits ---- */}
+        {step === 4 && (
+          <div className="w-row" style={{ flexWrap: 'wrap', gap: 16 }}>
+            <TextInput id="ds-rpm" labelText={tr(lang, 'Requests per minute')} value={String(spec.rate_limit_rpm)} onChange={(e) => set('rate_limit_rpm', e.target.value)} />
+            <TextInput id="ds-quota" labelText={tr(lang, 'Daily quota')} value={String(spec.daily_quota)} onChange={(e) => set('daily_quota', e.target.value)} />
+            <TextInput id="ds-conc" labelText={tr(lang, 'Max concurrency')} value={String(spec.max_concurrency)} onChange={(e) => set('max_concurrency', e.target.value)} />
+          </div>
+        )}
+
+        {/* ---- Step 5: review ---- */}
+        {step === 5 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <StructuredListWrapper isCondensed>
+              <StructuredListBody>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Endpoint URL')}</StructuredListCell><StructuredListCell className="ip-mono">/data-api/v1/{spec.name || '—'}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Source')}</StructuredListCell><StructuredListCell className="ip-mono">{spec.source_ref || '—'}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Auth mode')}</StructuredListCell><StructuredListCell>{tr(lang, AUTH_LABEL[spec.auth_mode])}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Exposed fields')}</StructuredListCell><StructuredListCell>{exposed.length} {tr(lang, 'of')} {cols.length}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Parameters')}</StructuredListCell><StructuredListCell>{filters.length ? filters.map((f) => `${colCfg[f.column]?.as || f.column} ${f.op}${f.required ? '*' : ''}`).join(', ') : '—'}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Rate limit')}</StructuredListCell><StructuredListCell>{spec.rate_limit_rpm}/min · {spec.daily_quota}/day · {spec.max_concurrency} {tr(lang, 'concurrent')}</StructuredListCell></StructuredListRow>
+              </StructuredListBody>
+            </StructuredListWrapper>
+            <div className="w-fld"><label className="cds--label">{tr(lang, 'Response shape (exposed fields)')}</label>
+              <CodeSnippet type="multi" feedback={tr(lang, 'Copied')} style={{ maxHeight: 220 }}>
+                {`[\n  {\n${exposed.map((c) => `    "${colCfg[c.col].as || c.col}": ${JSON.stringify(sampleValue(c.type))}`).join(',\n')}\n  }\n]`}
+              </CodeSnippet>
+            </div>
+            {spec.auth_mode === 'none' && (
+              <InlineNotification kind="warning" lowContrast hideCloseButton title={tr(lang, 'Publishing as a public API')}
+                subtitle={tr(lang, 'Anonymous callers will reach this endpoint. They can only ever receive whitelisted, masked fields.')} />
+            )}
+          </div>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button kind="secondary" onClick={step === 0 ? onClose : () => setStep((s) => s - 1)}>{step === 0 ? tr(lang, 'Cancel') : tr(lang, 'Back')}</Button>
+        <Button kind="primary" renderIcon={iconFor(last ? 'send' : 'arrow--right')} disabled={!canNext}
+          onClick={last ? publish : () => setStep((s) => s + 1)}>{last ? tr(lang, 'Publish API') : tr(lang, 'Next')}</Button>
+      </ModalFooter>
+    </ComposedModal>
+  );
+}
+
+/* ============================ API DETAIL ============================ */
+function ApiDetail({ api: a, onBack, onChanged, notify, lang }) {
+  const [keys, setKeys] = useState([]);
+  const [newKey, setNewKey] = useState(null);
+  useEffect(() => {
+    if (a.auth_mode === 'apikey') api.listDataApiKeys(a.id || a.api_id).then(setKeys).catch(() => setKeys([]));
+  }, [a.id, a.api_id, a.auth_mode]);
+
+  const id = a.id || a.api_id;
+  const allowed = (() => { try { return JSON.parse(a.allowed_columns || '[]'); } catch { return []; } })();
+
+  const mintKey = async () => {
+    try { const k = await api.createDataApiKey(id, { name: `key-${Date.now()}` }); setNewKey(k); setKeys((ks) => [...ks, k]); }
+    catch (err) { notify && notify({ kind: 'error', title: tr(lang, 'Create key failed.'), subtitle: (err.detail || String(err.message || err)) }); }
+  };
+  const retire = async () => {
+    try { await api.deprecateDataApi(id); notify && notify({ kind: 'warning', title: tr(lang, 'API deprecated') }); onChanged(); onBack(); }
+    catch (err) { notify && notify({ kind: 'error', title: tr(lang, 'Deprecate failed.'), subtitle: (err.detail || String(err.message || err)) }); }
+  };
+
+  return (
+    <div>
+      <Button kind="ghost" size="sm" renderIcon={iconFor('arrow--left')} onClick={onBack} style={{ marginBottom: 12 }}>{tr(lang, 'Back to gallery')}</Button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <h1 className="ip-mono" style={{ fontSize: '1.75rem', fontWeight: 400, margin: 0 }}>{a.name}</h1>
+        <Tag type={AUTH_TAG[a.auth_mode] || 'cool-gray'} size="md">{tr(lang, AUTH_LABEL[a.auth_mode] || a.auth_mode)}</Tag>
+        <StatusDot kind={STATUS_KIND[a.status] || 'gray'}>{tr(lang, a.status)}</StatusDot>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 1 }}>
+          {a.status !== 'published' && <Button kind="tertiary" size="md" renderIcon={iconFor('play')} onClick={async () => { await api.publishDataApi(id); onChanged(); notify && notify({ kind: 'success', title: tr(lang, 'API published') }); }}>{tr(lang, 'Publish')}</Button>}
+          <Button kind="danger" size="md" renderIcon={iconFor('stop--outline')} onClick={retire}>{tr(lang, 'Deprecate')}</Button>
+        </div>
+      </div>
+      <Tabs>
+        <TabList aria-label="API detail">
+          <Tab>{tr(lang, 'Overview')}</Tab><Tab>{tr(lang, 'Contract')}</Tab><Tab>{tr(lang, 'Authentication')}</Tab><Tab>{tr(lang, 'Usage')}</Tab>
+        </TabList>
+        <TabPanels>
+          <TabPanel>
+            <StructuredListWrapper isCondensed style={{ marginTop: 8 }}>
+              <StructuredListBody>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Endpoint URL')}</StructuredListCell><StructuredListCell className="ip-mono">/data-api/v1/{a.name}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Source')}</StructuredListCell><StructuredListCell className="ip-mono">{a.source_ref}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Owner')}</StructuredListCell><StructuredListCell>{a.owner || '—'}</StructuredListCell></StructuredListRow>
+                <StructuredListRow><StructuredListCell>{tr(lang, 'Rate limit')}</StructuredListCell><StructuredListCell>{a.rate_limit_rpm || '—'}/min</StructuredListCell></StructuredListRow>
+              </StructuredListBody>
+            </StructuredListWrapper>
+          </TabPanel>
+          <TabPanel>
+            <div style={{ marginTop: 8 }}>
+              <div className="w-section-label">{tr(lang, 'Exposed fields')}</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {allowed.length ? allowed.map((f) => <Tag key={f} type="cool-gray" size="sm">{f}</Tag>)
+                  : <span style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)' }}>{tr(lang, 'All non-masked columns')}</span>}
+              </div>
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <div style={{ marginTop: 8 }}>
+              {a.auth_mode !== 'apikey' ? (
+                <InlineNotification kind="info" lowContrast hideCloseButton title={tr(lang, AUTH_LABEL[a.auth_mode])}
+                  subtitle={tr(lang, 'No API keys for this auth mode. Callers authenticate via the configured provider.')} />
+              ) : (
+                <>
+                  {newKey && (
+                    <InlineNotification kind="success" lowContrast title={tr(lang, 'Key created — copy it now')} subtitle={newKey.key} />
+                  )}
+                  <CarbonTable
+                    headers={[{ key: 'name', header: tr(lang, 'Key name') }, { key: 'prefix', header: tr(lang, 'Token'), mono: true }, { key: 'ofw', header: '' }]}
+                    rows={keys}
+                    actions={<Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={mintKey}>{tr(lang, 'Create key')}</Button>}
+                    renderCell={(r, k) => k === 'ofw'
+                      ? <Button kind="ghost" size="sm" onClick={() => api.deleteDataApiKey(id, r.key_id).then(() => setKeys((ks) => ks.filter((x) => x.key_id !== r.key_id)))}>{tr(lang, 'Revoke')}</Button>
+                      : r[k]} />
+                </>
+              )}
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <InlineNotification kind="info" lowContrast hideCloseButton style={{ marginTop: 8 }}
+              title={tr(lang, 'Usage metrics')}
+              subtitle={tr(lang, 'Per-API call volume and latency are recorded in the access audit. A usage dashboard will surface them here.')} />
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </div>
+  );
+}
+
+/* ============================ GOVERNANCE OVERVIEW ============================ */
+function GovOverview({ rows, onOpen, lang }) {
+  const published = rows.filter((r) => r.status === 'published');
+  const kpis = [
+    { k: 'Total APIs', v: rows.length, icon: 'apps' },
+    { k: 'Published', v: published.length, icon: 'checkmark--filled' },
+    { k: 'Auth modes', v: new Set(rows.map((r) => r.auth_mode)).size, icon: 'locked' },
+    { k: 'Public (no auth)', v: rows.filter((r) => r.auth_mode === 'none').length, icon: 'unlocked' },
+  ];
+  return (
+    <div>
+      <div className="w-stats" style={{ marginBottom: 24 }}>
+        {kpis.map((s) => <div className="s" key={s.k}><div className="k"><Icon name={s.icon} size={16} />{tr(lang, s.k)}</div><div className="v">{s.v}</div></div>)}
+      </div>
+      <div className="w-section-label">{tr(lang, 'Published APIs')}</div>
+      <CarbonTable
+        headers={[{ key: 'name', header: tr(lang, 'API') }, { key: 'source_ref', header: tr(lang, 'Source'), mono: true }, { key: 'auth_mode', header: tr(lang, 'Auth') }]}
+        rows={published}
+        onRowClick={onOpen}
+        renderCell={(r, k) => {
+          if (k === 'name') return <a href="#" onClick={(e) => { e.preventDefault(); onOpen(r); }}>{r.name}</a>;
+          if (k === 'auth_mode') return <Tag type={AUTH_TAG[r.auth_mode] || 'cool-gray'} size="sm">{tr(lang, AUTH_LABEL[r.auth_mode] || r.auth_mode)}</Tag>;
+          return r[k];
+        }} />
+    </div>
+  );
+}
+
+/* ============================ ROOT ============================ */
+const DS_SUBS = [
+  { id: 'gallery', label: 'API gallery' },
+  { id: 'overview', label: 'Governance overview' },
+];
+const TITLES = {
+  gallery: ['API gallery', 'Publish, secure, and monitor read-only data APIs over your semantic models and tables.'],
+  overview: ['Governance overview', 'Health and traffic across every published data API.'],
+};
+
+export default function DataServices({ notify, lang }) {
+  const [sub, setSub] = useState('gallery');
+  const [api_, setApi] = useState(null);
+  const [wizard, setWizard] = useState(false);
+  const [rows, setRows] = useState([]);
+
+  const load = () => api.dataApis.list()
+    .then((r) => setRows((r || []).map((x, i) => ({ ...x, id: String(x.id || x.api_id || i) }))))
+    .catch((err) => console.error('data-apis failed', err));
+  useEffect(() => { load(); }, []);
+
+  if (sub === 'gallery' && api_) {
+    return (
+      <div className="w-page">
+        <div className="w-crumb">
+          <a href="#" onClick={(e) => e.preventDefault()}>{tr(lang, 'Data Services')}</a><span className="sep">/</span>
+          <a href="#" onClick={(e) => e.preventDefault()}>{tr(lang, 'API gallery')}</a><span className="sep">/</span><span>{api_.name}</span>
+        </div>
+        <ApiDetail api={api_} onBack={() => setApi(null)} onChanged={load} notify={notify} lang={lang} />
+        {wizard && <PublishWizard onClose={() => setWizard(false)} onDone={() => { setWizard(false); load(); }} notify={notify} lang={lang} />}
+      </div>
+    );
+  }
+  const [t, s] = TITLES[sub];
+  return (
+    <div className="w-page">
+      <PageHeader crumb={[tr(lang, 'Data Services'), tr(lang, t)]} title={tr(lang, t)} sub={tr(lang, s)}
+        actions={sub === 'gallery' ? <Button kind="primary" size="md" renderIcon={iconFor('add')} onClick={() => setWizard(true)}>{tr(lang, 'Publish API')}</Button> : null} />
+      <SubSwitch items={trList(lang, DS_SUBS)} value={sub} onChange={(v) => { setSub(v); setApi(null); }} />
+      {sub === 'gallery' && <ApiGallery rows={rows} onOpen={setApi} onPublish={() => setWizard(true)} onRefresh={load} notify={notify} lang={lang} />}
+      {sub === 'overview' && <GovOverview rows={rows} onOpen={(r) => { setSub('gallery'); setApi(r); }} lang={lang} />}
+      {wizard && <PublishWizard onClose={() => setWizard(false)} onDone={() => { setWizard(false); load(); }} notify={notify} lang={lang} />}
+    </div>
+  );
+}

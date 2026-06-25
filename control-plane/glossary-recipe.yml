@@ -1,0 +1,24 @@
+# ============================================================
+# DataHub Business Glossary ingestion recipe.
+# Imports ./glossary.yml into DataHub.
+#
+# 用 CLI 跑（business-glossary 是 file-based source，UI executor 拿不到本地文件，
+# 所以这个用 CLI 导入，不走 UI）：
+#
+#   pip install acryl-datahub
+#   datahub ingest -c glossary-recipe.yml
+#
+# glossary.yml 与本文件需在同一目录（或把 file 改成绝对路径）。
+# ============================================================
+source:
+  type: datahub-business-glossary
+  config:
+    file: ./glossary.yml
+    # 自动给 node/term 生成稳定 urn（基于名字路径），便于重复导入更新
+    enable_auto_id: true
+
+sink:
+  type: datahub-rest
+  config:
+    server: "http://datahub-datahub-gms.datahub.svc.cluster.local:8080"
+    token: "eyJhbGciOiJIUzI1NiJ9.eyJhY3RvclR5cGUiOiJVU0VSIiwiYWN0b3JJZCI6ImRhdGFodWIiLCJ0eXBlIjoiUEVSU09OQUwiLCJ2ZXJzaW9uIjoiMiIsImp0aSI6ImFmZWFiZTEzLWJjMTMtNDU3Mi04N2I0LTkyN2QxNzcxNzdiNCIsInN1YiI6ImRhdGFodWIiLCJpc3MiOiJkYXRhaHViLW1ldGFkYXRhLXNlcnZpY2UifQ.s6wyrLe3vMtHNIbqO8Hqqtpj50Ej_9PHvFs_FAjVELk"

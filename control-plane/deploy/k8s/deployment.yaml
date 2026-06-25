@@ -1,0 +1,68 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: control-plane
+  namespace: control-plane
+  labels: { app: control-plane }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: control-plane }
+  template:
+    metadata:
+      labels: { app: control-plane }
+    spec:
+      containers:
+        - name: control-plane
+          image: 172.16.202.30/ipas/control-plane:latest   # Harbor (§12.2)
+          ports:
+            - containerPort: 8088
+          env:
+            # Production posture: real auth, real adapters.
+            - { name: CP_DEV_AUTH_BYPASS, value: "false" }
+            - { name: CP_DEV_USE_MOCK_ADAPTERS, value: "false" }
+            # Secrets injected from K8s Secrets (§12.3) — never baked into the image.
+            - name: CP_KEYCLOAK_CLIENT_SECRET
+              valueFrom: { secretKeyRef: { name: cp-keycloak, key: client-secret } }
+            - name: CP_POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: cp-postgres, key: password } }
+          volumeMounts:
+            # Shared RWX DAG volume (§8.1) — BFF writes rendered DAGs read-only side.
+            - name: airflow-dags
+              mountPath: /airflow-dags
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8088 }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8088 }
+            initialDelaySeconds: 10
+            periodSeconds: 20
+      volumes:
+        - name: airflow-dags
+          persistentVolumeClaim:
+            claimName: airflow-dags-rwx     # see airflow-dags-pvc.yaml (in airflow ns; cross-ns mount via RWX)
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sql-rewrite
+  namespace: control-plane
+  labels: { app: sql-rewrite }
+spec:
+  replicas: 2                              # stateless, horizontally scalable (§10.3)
+  selector:
+    matchLabels: { app: sql-rewrite }
+  template:
+    metadata:
+      labels: { app: sql-rewrite }
+    spec:
+      containers:
+        - name: sql-rewrite
+          image: 172.16.202.30/ipas/sql-rewrite:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8000 }
+            initialDelaySeconds: 5
+            periodSeconds: 10

@@ -1,0 +1,48 @@
+{{template "spark_header" .}}
+# Silver fact: resolve dimension surrogate keys (FK lookup against current dim rows),
+# day-partitioned, range delete+insert by watermark. Abstracted from fact_table_etl.py.
+from pyspark.sql.functions import expr
+
+TARGET = "iceberg.{{.Table.TargetNS}}.{{.Table.Name}}"
+SOURCE_REF = "{{.Table.SourceRef}}"
+
+# (dim_target, fact_fk, dim_pk) — joins resolve to current dim surrogate keys
+DIM_JOINS = [
+{{range .Relationships}}    ("iceberg.{{.DimNS}}.{{.DimName}}", "{{.FactFK}}", "{{.DimPK}}"),
+{{end}}]
+
+def transform(df):
+    # === BEGIN CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+{{.CustomBlock "transform"}}
+    # === END CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+    return df
+
+def ensure_table(spark):
+    cols = ", ".join([
+{{range .Table.Columns}}        "{{.Name}} {{.Dtype}}",
+{{end}}        "_loaded_at timestamp",
+    ])
+    spark.sql(f"CREATE TABLE IF NOT EXISTS {TARGET} ({cols}) USING iceberg "
+              f"PARTITIONED BY (days(_loaded_at))")
+
+def main():
+    spark = build_spark()
+    ensure_table(spark)
+    fact = spark.read.format("iceberg").load(SOURCE_REF)
+    fact = fact.select(
+{{range .Table.Columns}}        {{if .SourceExpr}}expr("{{.SourceExpr}}").cast("{{.Dtype}}").alias("{{.Name}}"){{else}}col("{{.Name}}").cast("{{.Dtype}}"){{end}},
+{{end}}    )
+    for dim_target, fact_fk, dim_pk in DIM_JOINS:
+        dim = (spark.read.format("iceberg").load(dim_target)
+               .filter("_is_current = true")
+               .select(col(dim_pk).alias("_j_"+dim_pk), col("_surrogate_key").alias(fact_fk+"_sk")))
+        fact = fact.join(dim, fact[fact_fk] == dim["_j_"+dim_pk], "left").drop("_j_"+dim_pk)
+
+    fact = transform(fact)
+    fact = fact.withColumn("_loaded_at", current_timestamp())
+    logger.info("writing %d fact rows -> %s", fact.count(), TARGET)
+    fact.writeTo(TARGET).append()
+    spark.stop()
+
+if __name__ == "__main__":
+    main()

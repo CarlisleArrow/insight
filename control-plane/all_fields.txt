@@ -1,0 +1,2080 @@
+﻿
+############ bronze_qms ############
+
+=== _dim_etl_watermarks ===
+  dim_table  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _etl_watermarks ===
+  table_name  [VARCHAR]  
+  partition_key  [VARCHAR]  
+  max_raw_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _fact_etl_watermarks ===
+  fact_table  [VARCHAR]  
+  year_month_day  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _gold_etl_watermarks ===
+  aggregation_type  [VARCHAR]  
+  start_date  [DATE]  
+  end_date  [DATE]  
+  last_execution_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== agg_qualification_rate_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  unqualified_count  [INTEGER]  
+  unqualified_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== agg_warning_statistics_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  warning_count  [INTEGER]  
+  warning_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== analysis_records ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  record_timestamp  [BIGINT]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [VARCHAR]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  created_at  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_datetime  [VARCHAR]  
+  business_date  [DATE]  
+  record_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== analysis_records ===
+    []  
+
+=== bronze_qms._etl_watermarks ===
+    []  
+
+=== bronze_qms.analysis_records ===
+    []  
+
+=== bronze_qms.categories ===
+    []  
+
+=== bronze_qms.chemical_analysis_results ===
+    []  
+
+=== bronze_qms.lines ===
+    []  
+
+=== bronze_qms.processes ===
+    []  
+
+=== categories ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== categories ===
+    []  
+
+=== chemical_analysis_results ===
+    []  
+
+=== chemical_analysis_results ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  analysis_record_id  [VARCHAR]  
+  analysis_date  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  frequency  [VARCHAR]  
+  analysis_time  [BIGINT]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  remarks  [VARCHAR]  
+  adjustment_chemical  [VARCHAR]  
+  adjustment_quantity  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_date  [DATE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== dim_categories ===
+  category_sk  [INTEGER]  
+  category_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_lines ===
+  line_sk  [INTEGER]  
+  line_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_processes ===
+  process_sk  [INTEGER]  
+  process_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_analysis_records ===
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  analysis_date  [DATE]  
+  record_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_chemical_analysis_results ===
+  result_id  [VARCHAR]  
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  analysis_date  [DATE]  
+  analysis_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== gold_qms._gold_etl_watermarks ===
+    []  
+
+=== gold_qms.agg_qualification_rate_daily ===
+    []  
+
+=== gold_qms.agg_warning_statistics_daily ===
+    []  
+
+=== gold_qms.spc_baseline ===
+    []  
+
+=== gold_qms.spc_c_chart ===
+    []  
+
+=== gold_qms.spc_capability_daily ===
+    []  
+
+=== gold_qms.spc_monthly_alarm_rate ===
+    []  
+
+=== gold_qms.spc_p_chart ===
+    []  
+
+=== gold_qms.spc_trend_ma ===
+    []  
+
+=== gold_qms.spc_xbar_r_chart ===
+    []  
+
+=== gold_qms.spc_xbar_s_chart ===
+    []  
+
+=== lines ===
+    []  
+
+=== lines ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== processes ===
+    []  
+
+=== processes ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== qms.qms.analysis_records ===
+    []  
+
+=== qms.qms.categories ===
+    []  
+
+=== qms.qms.chemical_analysis_results ===
+    []  
+
+=== qms.qms.lines ===
+    []  
+
+=== qms.qms.processes ===
+    []  
+
+=== qms_gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_gold.spc_c_chart ===
+    []  
+
+=== qms_gold.spc_capability_daily ===
+    []  
+
+=== qms_gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_gold.spc_p_chart ===
+    []  
+
+=== qms_gold.spc_trend_ma ===
+    []  
+
+=== qms_gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_warehouse.gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_c_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_capability_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_warehouse.gold.spc_p_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_trend_ma ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.silver.dim_categories ===
+    []  
+
+=== qms_warehouse.silver.dim_date ===
+    []  
+
+=== qms_warehouse.silver.dim_lines ===
+    []  
+
+=== qms_warehouse.silver.dim_processes ===
+    []  
+
+=== qms_warehouse.silver.fact_analysis_records ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_analysis_results ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_results ===
+    []  
+
+=== silver_qms._dim_etl_watermarks ===
+    []  
+
+=== silver_qms._fact_etl_watermarks ===
+    []  
+
+=== silver_qms.dim_categories ===
+    []  
+
+=== silver_qms.dim_lines ===
+    []  
+
+=== silver_qms.dim_processes ===
+    []  
+
+=== silver_qms.fact_analysis_records ===
+    []  
+
+=== silver_qms.fact_chemical_analysis_results ===
+    []  
+
+=== spc_baseline ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  chart_type  [VARCHAR]  
+  baseline_n  [BIGINT]  
+  baseline_start_date  [DATE]  
+  baseline_end_date  [DATE]  
+  x_double_bar  [DOUBLE]  
+  mr_bar_baseline  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  is_preliminary  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_c_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  c  [INTEGER]  
+  c_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_capability_daily ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n_samples  [INTEGER]  
+  xbar  [DOUBLE]  
+  mr_bar  [DOUBLE]  
+  sigma_within  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  pp  [DOUBLE]  
+  ppk  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  oospec_points  [INTEGER]  
+  within_spec_rate  [DOUBLE]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_monthly_alarm_rate ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  total_points  [INTEGER]  
+  r0_count  [INTEGER]  
+  r1_count  [INTEGER]  
+  r2_count  [INTEGER]  
+  r3_count  [INTEGER]  
+  total_alarm_count  [INTEGER]  
+  alarm_rate  [DOUBLE]  
+  avg_cp  [DOUBLE]  
+  avg_cpk  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_p_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n  [INTEGER]  
+  np  [INTEGER]  
+  p  [DOUBLE]  
+  p_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_trend_ma ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  x  [DOUBLE]  
+  sma_5  [DOUBLE]  
+  sma_7  [DOUBLE]  
+  sma_14  [DOUBLE]  
+  ema_7  [DOUBLE]  
+  ema_14  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_xbar_r_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  r_bar  [DOUBLE]  
+  r_ucl  [DOUBLE]  
+  r_cl  [DOUBLE]  
+  r_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  r_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_xbar_s_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  s_bar  [DOUBLE]  
+  s_ucl  [DOUBLE]  
+  s_cl  [DOUBLE]  
+  s_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  s_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+############ silver_qms ############
+
+=== _dim_etl_watermarks ===
+  dim_table  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _etl_watermarks ===
+  table_name  [VARCHAR]  
+  partition_key  [VARCHAR]  
+  max_raw_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _fact_etl_watermarks ===
+  fact_table  [VARCHAR]  
+  year_month_day  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _gold_etl_watermarks ===
+  aggregation_type  [VARCHAR]  
+  start_date  [DATE]  
+  end_date  [DATE]  
+  last_execution_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== agg_qualification_rate_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  unqualified_count  [INTEGER]  
+  unqualified_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== agg_warning_statistics_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  warning_count  [INTEGER]  
+  warning_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== analysis_records ===
+    []  
+
+=== analysis_records ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  record_timestamp  [BIGINT]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [VARCHAR]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  created_at  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_datetime  [VARCHAR]  
+  business_date  [DATE]  
+  record_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== bronze_qms._etl_watermarks ===
+    []  
+
+=== bronze_qms.analysis_records ===
+    []  
+
+=== bronze_qms.categories ===
+    []  
+
+=== bronze_qms.chemical_analysis_results ===
+    []  
+
+=== bronze_qms.lines ===
+    []  
+
+=== bronze_qms.processes ===
+    []  
+
+=== categories ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== categories ===
+    []  
+
+=== chemical_analysis_results ===
+    []  
+
+=== chemical_analysis_results ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  analysis_record_id  [VARCHAR]  
+  analysis_date  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  frequency  [VARCHAR]  
+  analysis_time  [BIGINT]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  remarks  [VARCHAR]  
+  adjustment_chemical  [VARCHAR]  
+  adjustment_quantity  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_date  [DATE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== dim_categories ===
+  category_sk  [INTEGER]  
+  category_id  [VARCHAR(50)]  
+  name  [VARCHAR(255)]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== dim_categories ===
+  category_sk  [INTEGER]  
+  category_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_date ===
+  date_key  [INTEGER]  
+  full_date  [DATE]  
+  year  [INTEGER]  
+  quarter  [INTEGER]  
+  month  [INTEGER]  
+  week  [INTEGER]  
+  day_of_month  [INTEGER]  
+  day_of_week  [INTEGER]  
+  day_name  [VARCHAR(10)]  
+  month_name  [VARCHAR(10)]  
+  is_weekend  [BOOLEAN]  
+  is_holiday  [BOOLEAN]  
+  holiday_name  [VARCHAR(50)]  
+  fiscal_year  [INTEGER]  
+  fiscal_quarter  [INTEGER]  
+
+=== dim_lines ===
+  line_sk  [INTEGER]  
+  line_id  [VARCHAR(50)]  
+  name  [VARCHAR(255)]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== dim_lines ===
+  line_sk  [INTEGER]  
+  line_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_processes ===
+  process_sk  [INTEGER]  
+  process_id  [VARCHAR(50)]  
+  name  [VARCHAR(255)]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== dim_processes ===
+  process_sk  [INTEGER]  
+  process_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_time ===
+  time_key  [INTEGER]  
+  full_time  [TIME(6)]  
+  hour  [INTEGER]  
+  minute  [INTEGER]  
+  second  [INTEGER]  
+  hour_period  [VARCHAR(2)]  
+  shift  [VARCHAR(20)]  
+  is_work_hour  [BOOLEAN]  
+
+=== fact_analysis_records ===
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  analysis_date  [DATE]  
+  record_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_analysis_records ===
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  analysis_date  [DATE]  
+  record_timestamp  [TIMESTAMP(6)]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [TIMESTAMP(6)]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== fact_chemical_analysis_results ===
+  result_id  [VARCHAR]  
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  analysis_date  [DATE]  
+  analysis_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_chemical_results ===
+  result_id  [VARCHAR]  
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  analysis_date  [DATE]  
+  analysis_datetime  [TIMESTAMP(6)]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== gold_qms._gold_etl_watermarks ===
+    []  
+
+=== gold_qms.agg_qualification_rate_daily ===
+    []  
+
+=== gold_qms.agg_warning_statistics_daily ===
+    []  
+
+=== gold_qms.spc_baseline ===
+    []  
+
+=== gold_qms.spc_c_chart ===
+    []  
+
+=== gold_qms.spc_capability_daily ===
+    []  
+
+=== gold_qms.spc_monthly_alarm_rate ===
+    []  
+
+=== gold_qms.spc_p_chart ===
+    []  
+
+=== gold_qms.spc_trend_ma ===
+    []  
+
+=== gold_qms.spc_xbar_r_chart ===
+    []  
+
+=== gold_qms.spc_xbar_s_chart ===
+    []  
+
+=== lines ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== lines ===
+    []  
+
+=== processes ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== processes ===
+    []  
+
+=== qms.qms.analysis_records ===
+    []  
+
+=== qms.qms.categories ===
+    []  
+
+=== qms.qms.chemical_analysis_results ===
+    []  
+
+=== qms.qms.lines ===
+    []  
+
+=== qms.qms.processes ===
+    []  
+
+=== qms_gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_gold.spc_c_chart ===
+    []  
+
+=== qms_gold.spc_capability_daily ===
+    []  
+
+=== qms_gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_gold.spc_p_chart ===
+    []  
+
+=== qms_gold.spc_trend_ma ===
+    []  
+
+=== qms_gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_warehouse.gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_c_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_capability_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_warehouse.gold.spc_p_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_trend_ma ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.silver.dim_categories ===
+    []  
+
+=== qms_warehouse.silver.dim_date ===
+    []  
+
+=== qms_warehouse.silver.dim_lines ===
+    []  
+
+=== qms_warehouse.silver.dim_processes ===
+    []  
+
+=== qms_warehouse.silver.fact_analysis_records ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_analysis_results ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_results ===
+    []  
+
+=== silver_qms._dim_etl_watermarks ===
+    []  
+
+=== silver_qms._fact_etl_watermarks ===
+    []  
+
+=== silver_qms.dim_categories ===
+    []  
+
+=== silver_qms.dim_lines ===
+    []  
+
+=== silver_qms.dim_processes ===
+    []  
+
+=== silver_qms.fact_analysis_records ===
+    []  
+
+=== silver_qms.fact_chemical_analysis_results ===
+    []  
+
+=== spc_baseline ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  chart_type  [VARCHAR]  
+  baseline_n  [BIGINT]  
+  baseline_start_date  [DATE]  
+  baseline_end_date  [DATE]  
+  x_double_bar  [DOUBLE]  
+  mr_bar_baseline  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  is_preliminary  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_c_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  c  [INTEGER]  
+  c_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_capability_daily ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n_samples  [INTEGER]  
+  xbar  [DOUBLE]  
+  mr_bar  [DOUBLE]  
+  sigma_within  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  pp  [DOUBLE]  
+  ppk  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  oospec_points  [INTEGER]  
+  within_spec_rate  [DOUBLE]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_monthly_alarm_rate ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  total_points  [INTEGER]  
+  r0_count  [INTEGER]  
+  r1_count  [INTEGER]  
+  r2_count  [INTEGER]  
+  r3_count  [INTEGER]  
+  total_alarm_count  [INTEGER]  
+  alarm_rate  [DOUBLE]  
+  avg_cp  [DOUBLE]  
+  avg_cpk  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_p_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n  [INTEGER]  
+  np  [INTEGER]  
+  p  [DOUBLE]  
+  p_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_trend_ma ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  x  [DOUBLE]  
+  sma_5  [DOUBLE]  
+  sma_7  [DOUBLE]  
+  sma_14  [DOUBLE]  
+  ema_7  [DOUBLE]  
+  ema_14  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_xbar_r_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  r_bar  [DOUBLE]  
+  r_ucl  [DOUBLE]  
+  r_cl  [DOUBLE]  
+  r_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  r_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_xbar_s_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  s_bar  [DOUBLE]  
+  s_ucl  [DOUBLE]  
+  s_cl  [DOUBLE]  
+  s_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  s_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+############ gold_qms ############
+
+=== _dim_etl_watermarks ===
+  dim_table  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _etl_watermarks ===
+  table_name  [VARCHAR]  
+  partition_key  [VARCHAR]  
+  max_raw_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _fact_etl_watermarks ===
+  fact_table  [VARCHAR]  
+  year_month_day  [VARCHAR]  
+  max_bronze_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  last_execution_date  [DATE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== _gold_etl_watermarks ===
+  aggregation_type  [VARCHAR]  
+  start_date  [DATE]  
+  end_date  [DATE]  
+  last_execution_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  processed_records  [BIGINT]  
+  last_updated  [TIMESTAMP(6) WITH TIME ZONE]  
+  status  [VARCHAR]  
+
+=== agg_daily_summary ===
+  id  [BIGINT]  
+  analysis_date  [DATE]  
+  total_analysis_count  [INTEGER]  
+  qualified_count  [INTEGER]  
+  unqualified_count  [INTEGER]  
+  qualified_rate  [DECIMAL(5, 2)]  
+  unqualified_rate  [DECIMAL(5, 2)]  
+  process_count  [INTEGER]  
+  line_count  [INTEGER]  
+  analyst_count  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+
+=== agg_qualification_rate_daily ===
+  id  [INTEGER]  
+  process_name  [VARCHAR(128)]  
+  shift  [VARCHAR(32)]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  unqualified_count  [INTEGER]  
+  unqualified_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6)]  
+
+=== agg_qualification_rate_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  unqualified_count  [INTEGER]  
+  unqualified_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== agg_warning_statistics_daily ===
+  process_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  warning_count  [INTEGER]  
+  warning_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== agg_warning_statistics_daily ===
+  id  [INTEGER]  
+  process_name  [VARCHAR(128)]  
+  shift  [VARCHAR(32)]  
+  analysis_date  [DATE]  
+  total_analyses  [INTEGER]  
+  warning_count  [INTEGER]  
+  warning_rate  [DOUBLE]  
+  created_at  [TIMESTAMP(6)]  
+
+=== analysis_records ===
+    []  
+
+=== analysis_records ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  record_timestamp  [BIGINT]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [VARCHAR]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  created_at  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_datetime  [VARCHAR]  
+  business_date  [DATE]  
+  record_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== bronze_qms._etl_watermarks ===
+    []  
+
+=== bronze_qms.analysis_records ===
+    []  
+
+=== bronze_qms.categories ===
+    []  
+
+=== bronze_qms.chemical_analysis_results ===
+    []  
+
+=== bronze_qms.lines ===
+    []  
+
+=== bronze_qms.processes ===
+    []  
+
+=== categories ===
+    []  
+
+=== categories ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== chemical_analysis_results ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  analysis_record_id  [VARCHAR]  
+  analysis_date  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  frequency  [VARCHAR]  
+  analysis_time  [BIGINT]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  remarks  [VARCHAR]  
+  adjustment_chemical  [VARCHAR]  
+  adjustment_quantity  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  business_date  [DATE]  
+  data_quality_status  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  year_month_day  [VARCHAR]  
+
+=== chemical_analysis_results ===
+    []  
+
+=== dim_categories ===
+  category_sk  [INTEGER]  
+  category_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_lines ===
+  line_sk  [INTEGER]  
+  line_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== dim_processes ===
+  process_sk  [INTEGER]  
+  process_id  [VARCHAR]  
+  name  [VARCHAR]  
+  effective_date  [DATE]  
+  expiration_date  [DATE]  
+  is_current  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_analysis_records ===
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  process_id  [VARCHAR]  
+  category_id  [VARCHAR]  
+  line_id  [VARCHAR]  
+  analysis_date  [DATE]  
+  record_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  report_description  [VARCHAR]  
+  submitter  [VARCHAR]  
+  submission_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  shift  [VARCHAR]  
+  analyst  [VARCHAR]  
+  overall_judgment  [VARCHAR]  
+  source_filename  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== fact_chemical_analysis_results ===
+  result_id  [VARCHAR]  
+  analysis_id  [VARCHAR]  
+  date_key  [INTEGER]  
+  process_key  [INTEGER]  
+  category_key  [INTEGER]  
+  line_key  [INTEGER]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  item_unit  [VARCHAR]  
+  grade  [VARCHAR]  
+  process_range_min  [DECIMAL(10, 4)]  
+  process_range_max  [DECIMAL(10, 4)]  
+  control_point  [DECIMAL(10, 4)]  
+  control_range_min  [DECIMAL(10, 4)]  
+  control_range_max  [DECIMAL(10, 4)]  
+  result_value  [DECIMAL(10, 4)]  
+  judgment  [VARCHAR]  
+  analysis_date  [DATE]  
+  analysis_datetime  [TIMESTAMP(6) WITH TIME ZONE]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  day  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== gold_qms._gold_etl_watermarks ===
+    []  
+
+=== gold_qms.agg_qualification_rate_daily ===
+    []  
+
+=== gold_qms.agg_warning_statistics_daily ===
+    []  
+
+=== gold_qms.spc_baseline ===
+    []  
+
+=== gold_qms.spc_c_chart ===
+    []  
+
+=== gold_qms.spc_capability_daily ===
+    []  
+
+=== gold_qms.spc_monthly_alarm_rate ===
+    []  
+
+=== gold_qms.spc_p_chart ===
+    []  
+
+=== gold_qms.spc_trend_ma ===
+    []  
+
+=== gold_qms.spc_xbar_r_chart ===
+    []  
+
+=== gold_qms.spc_xbar_s_chart ===
+    []  
+
+=== lines ===
+    []  
+
+=== lines ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== processes ===
+  topic  [VARCHAR]  
+  partition  [INTEGER]  
+  offset  [BIGINT]  
+  kafka_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  id  [VARCHAR]  
+  name  [VARCHAR]  
+  __deleted  [VARCHAR]  
+  cdc_operation  [VARCHAR]  
+  raw_ingestion_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  raw_data_version  [VARCHAR]  
+  bronze_processing_timestamp  [TIMESTAMP(6) WITH TIME ZONE]  
+  data_quality_status  [VARCHAR]  
+
+=== processes ===
+    []  
+
+=== qms.qms.analysis_records ===
+    []  
+
+=== qms.qms.categories ===
+    []  
+
+=== qms.qms.chemical_analysis_results ===
+    []  
+
+=== qms.qms.lines ===
+    []  
+
+=== qms.qms.processes ===
+    []  
+
+=== qms_gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_gold.spc_c_chart ===
+    []  
+
+=== qms_gold.spc_capability_daily ===
+    []  
+
+=== qms_gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_gold.spc_p_chart ===
+    []  
+
+=== qms_gold.spc_trend_ma ===
+    []  
+
+=== qms_gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.gold.agg_qualification_rate_daily ===
+    []  
+
+=== qms_warehouse.gold.agg_warning_statistics_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_c_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_capability_daily ===
+    []  
+
+=== qms_warehouse.gold.spc_monthly_alarm_rate ===
+    []  
+
+=== qms_warehouse.gold.spc_p_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_trend_ma ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_r_chart ===
+    []  
+
+=== qms_warehouse.gold.spc_xbar_s_chart ===
+    []  
+
+=== qms_warehouse.silver.dim_categories ===
+    []  
+
+=== qms_warehouse.silver.dim_date ===
+    []  
+
+=== qms_warehouse.silver.dim_lines ===
+    []  
+
+=== qms_warehouse.silver.dim_processes ===
+    []  
+
+=== qms_warehouse.silver.fact_analysis_records ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_analysis_results ===
+    []  
+
+=== qms_warehouse.silver.fact_chemical_results ===
+    []  
+
+=== silver_qms._dim_etl_watermarks ===
+    []  
+
+=== silver_qms._fact_etl_watermarks ===
+    []  
+
+=== silver_qms.dim_categories ===
+    []  
+
+=== silver_qms.dim_lines ===
+    []  
+
+=== silver_qms.dim_processes ===
+    []  
+
+=== silver_qms.fact_analysis_records ===
+    []  
+
+=== silver_qms.fact_chemical_analysis_results ===
+    []  
+
+=== spc_baseline ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  chart_type  [VARCHAR]  
+  baseline_n  [BIGINT]  
+  baseline_start_date  [DATE]  
+  baseline_end_date  [DATE]  
+  x_double_bar  [DOUBLE]  
+  mr_bar_baseline  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  is_preliminary  [BOOLEAN]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_c_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  c  [INTEGER]  
+  c_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_c_chart ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  shift  [VARCHAR(32)]  
+  analysis_date  [DATE]  
+  c  [INTEGER]  
+  c_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_capability_daily ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n_samples  [INTEGER]  
+  xbar  [DOUBLE]  
+  mr_bar  [DOUBLE]  
+  sigma_within  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  pp  [DOUBLE]  
+  ppk  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  oospec_points  [INTEGER]  
+  within_spec_rate  [DOUBLE]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_capability_daily ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  tank_name  [VARCHAR(128)]  
+  item_name  [VARCHAR(128)]  
+  shift  [VARCHAR(32)]  
+  analysis_date  [DATE]  
+  n_samples  [INTEGER]  
+  xbar  [DOUBLE]  
+  mr_bar  [DOUBLE]  
+  sigma_within  [DOUBLE]  
+  ucl_x  [DOUBLE]  
+  cl_x  [DOUBLE]  
+  lcl_x  [DOUBLE]  
+  ucl_mr  [DOUBLE]  
+  cl_mr  [DOUBLE]  
+  lcl_mr  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  pp  [DOUBLE]  
+  ppk  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  oospec_points  [INTEGER]  
+  within_spec_rate  [DOUBLE]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR(32)]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_monthly_alarm_rate ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  tank_name  [VARCHAR(128)]  
+  item_name  [VARCHAR(128)]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  total_points  [INTEGER]  
+  r0_count  [INTEGER]  
+  r1_count  [INTEGER]  
+  r2_count  [INTEGER]  
+  r3_count  [INTEGER]  
+  total_alarm_count  [INTEGER]  
+  alarm_rate  [DOUBLE]  
+  avg_cp  [DOUBLE]  
+  avg_cpk  [DOUBLE]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_monthly_alarm_rate ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  year  [INTEGER]  
+  month  [INTEGER]  
+  total_points  [INTEGER]  
+  r0_count  [INTEGER]  
+  r1_count  [INTEGER]  
+  r2_count  [INTEGER]  
+  r3_count  [INTEGER]  
+  total_alarm_count  [INTEGER]  
+  alarm_rate  [DOUBLE]  
+  avg_cp  [DOUBLE]  
+  avg_cpk  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_p_chart ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  shift  [VARCHAR(32)]  
+  analysis_date  [DATE]  
+  n  [INTEGER]  
+  np  [INTEGER]  
+  p  [DOUBLE]  
+  p_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_p_chart ===
+  process_id  [VARCHAR]  
+  shift  [VARCHAR]  
+  analysis_date  [DATE]  
+  n  [INTEGER]  
+  np  [INTEGER]  
+  p  [DOUBLE]  
+  p_bar  [DOUBLE]  
+  ucl  [DOUBLE]  
+  cl  [DOUBLE]  
+  lcl  [DOUBLE]  
+  ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_trend_ma ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  x  [DOUBLE]  
+  sma_5  [DOUBLE]  
+  sma_7  [DOUBLE]  
+  sma_14  [DOUBLE]  
+  ema_7  [DOUBLE]  
+  ema_14  [DOUBLE]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_trend_ma ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  tank_name  [VARCHAR(128)]  
+  item_name  [VARCHAR(128)]  
+  analysis_date  [DATE]  
+  x  [DOUBLE]  
+  sma_5  [DOUBLE]  
+  sma_7  [DOUBLE]  
+  sma_14  [DOUBLE]  
+  ema_7  [DOUBLE]  
+  ema_14  [DOUBLE]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_xbar_r_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  r_bar  [DOUBLE]  
+  r_ucl  [DOUBLE]  
+  r_cl  [DOUBLE]  
+  r_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  r_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  
+
+=== spc_xbar_r_chart ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  tank_name  [VARCHAR(128)]  
+  item_name  [VARCHAR(128)]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  r_bar  [DOUBLE]  
+  r_ucl  [DOUBLE]  
+  r_cl  [DOUBLE]  
+  r_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  r_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  data_sufficient  [BOOLEAN]  
+  limit_source  [VARCHAR(32)]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_xbar_s_chart ===
+  id  [INTEGER]  
+  process_id  [VARCHAR(64)]  
+  tank_name  [VARCHAR(128)]  
+  item_name  [VARCHAR(128)]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  s_bar  [DOUBLE]  
+  s_ucl  [DOUBLE]  
+  s_cl  [DOUBLE]  
+  s_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  s_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6)]  
+  updated_at  [TIMESTAMP(6)]  
+
+=== spc_xbar_s_chart ===
+  process_id  [VARCHAR]  
+  tank_name  [VARCHAR]  
+  item_name  [VARCHAR]  
+  analysis_date  [DATE]  
+  subgroup_size  [INTEGER]  
+  subgroup_count  [INTEGER]  
+  xbar_grand  [DOUBLE]  
+  xbar_ucl  [DOUBLE]  
+  xbar_cl  [DOUBLE]  
+  xbar_lcl  [DOUBLE]  
+  s_bar  [DOUBLE]  
+  s_ucl  [DOUBLE]  
+  s_cl  [DOUBLE]  
+  s_lcl  [DOUBLE]  
+  lsl  [DOUBLE]  
+  usl  [DOUBLE]  
+  cp  [DOUBLE]  
+  cpk  [DOUBLE]  
+  xbar_ooc_points  [INTEGER]  
+  s_ooc_points  [INTEGER]  
+  r2_flag  [INTEGER]  
+  r3_flag  [INTEGER]  
+  ooc_total  [INTEGER]  
+  created_at  [TIMESTAMP(6) WITH TIME ZONE]  
+  updated_at  [TIMESTAMP(6) WITH TIME ZONE]  

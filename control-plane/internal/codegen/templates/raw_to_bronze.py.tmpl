@@ -1,0 +1,44 @@
+{{template "spark_header" .}}
+# RAW -> Bronze: light typing + ingest metadata, idempotent overwrite by day partition.
+from pyspark.sql.functions import expr
+
+TARGET = "iceberg.{{.Table.TargetNS}}.{{.Table.Name}}"
+SOURCE_REF = "{{.Table.SourceRef}}"
+
+def transform(df):
+    # === BEGIN CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+{{.CustomBlock "transform"}}
+    # === END CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+    return df
+
+def ensure_table(spark):
+    cols = ", ".join([
+{{range .Table.Columns}}        "{{.Name}} {{.Dtype}}",
+{{end}}        "_ingested_at timestamp",
+        "_source string",
+    ])
+    spark.sql(f"CREATE TABLE IF NOT EXISTS {TARGET} ({cols}) USING iceberg "
+              f"PARTITIONED BY (days(_ingested_at))")
+
+def main():
+    spark = build_spark()
+    ensure_table(spark)
+    logger.info("reading source %s", SOURCE_REF)
+    src = spark.read.format("iceberg").load(SOURCE_REF) if "." in SOURCE_REF else spark.read.parquet(SOURCE_REF)
+
+    df = (src
+{{range .Table.Columns}}        .withColumn("{{.Name}}", {{if .SourceExpr}}expr("{{.SourceExpr}}").cast("{{.Dtype}}"){{else}}col("{{.Name}}").cast("{{.Dtype}}"){{end}})
+{{end}}    )
+    df = transform(df)
+    df = df.withColumn("_ingested_at", current_timestamp()).withColumn("_source", lit(SOURCE_REF))
+
+    logger.info("writing %d rows -> %s", df.count(), TARGET)
+    df.select(
+{{range .Table.Columns}}        "{{.Name}}",
+{{end}}        "_ingested_at", "_source",
+    ).writeTo(TARGET).append()
+    logger.info("done")
+    spark.stop()
+
+if __name__ == "__main__":
+    main()

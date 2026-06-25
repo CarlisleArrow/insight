@@ -1,0 +1,81 @@
+# ============================================================
+# control-plane non-secret defaults.
+# Secrets (DB password, Keycloak client-secret, MinIO/CH creds)
+# come from env / K8s Secrets — NEVER put them here.
+# In-cluster addresses verified from ARCHITECTURE.md §4.
+# ============================================================
+
+server:
+  http_addr: ":8088"
+  read_timeout_seconds: 15
+  write_timeout_seconds: 60
+  shutdown_timeout_seconds: 20
+  # Base URL used to build report download links in delivered messages.
+  public_base_url: "http://172.16.202.51"
+
+# Dev toggle. Defaults false so production is locked down.
+#   auth_bypass — skip Keycloak JWT verify, inject a synthetic dev subject.
+# (Adapters are always real; reach the cluster via Telepresence or in-cluster DNS.)
+dev:
+  auth_bypass: false
+  bypass_groups:
+    - data-platform-admin
+
+# Keycloak / OIDC (§2.1). Issuer realm = Unified_SSO, client = insight.
+# client_secret is injected via env CP_KEYCLOAK_CLIENT_SECRET (K8s Secret cp-keycloak).
+keycloak:
+  issuer: "https://ias.siptory.com:8443/realms/Unified_SSO"
+  client_id: "insight"
+  groups_claim: "groups"
+  # JWKS is derived from the issuer's discovery document by go-oidc.
+
+# platform_metadata store (§2.3, §4.1). Password from env CP_POSTGRES_PASSWORD.
+postgres:
+  host: "postgres-external.pgsql.svc.cluster.local"
+  port: 5432
+  database: "qms_warehouse"
+  user: "admin"
+  search_path: "platform_metadata"
+  sslmode: "disable"
+  max_conns: 10
+
+# L6 SQL-rewrite microservice (§10.3).
+rewrite:
+  base_url: "http://sql-rewrite.control-plane.svc.cluster.local:8000"
+  timeout_seconds: 10
+
+# Downstream component addresses (§4). Used by the real adapter clients.
+# Secrets (clickhouse_password, datahub_token, sentry_token, *_auth) are env-only.
+adapters:
+  debezium_url: "http://debezium-connect.data-warehouse.svc.cluster.local:8083"
+
+  airflow_url: "http://airflow-webserver.airflow.svc.cluster.local:8080"
+  # EnsureDAG writes rendered .py here (§8.1 shared RWX volume mount).
+  airflow_dags_dir: "/airflow-dags"
+  airflow_auth: ""   # Airflow currently has no auth (§4); set "Basic ..." when enabled
+
+  iceberg_rest_url: "http://iceberg-rest-catalog.data-warehouse.svc.cluster.local:8181"
+
+  kafka_url: "kafka-cluster.kafka.svc.cluster.local:9092"
+  minio_url: "http://minio.default.svc.cluster.local:9000"
+
+  trino_url: "http://my-trino-trino.trino.svc.cluster.local:8080"
+  trino_user: "control-plane"
+
+  clickhouse_url: "http://clickhouse-service.default.svc.cluster.local:8123"
+  clickhouse_user: "default"        # replace with dedicated cp user (§12.3)
+  clickhouse_database: "default"
+
+  datahub_gms_url: "http://datahub-datahub-gms.datahub.svc.cluster.local:8080"
+
+  prometheus_url: "http://prometheus-k8s.kubesphere-monitoring-system.svc.cluster.local:9090"
+
+  opensearch_url: "http://opensearch-cluster-master.kubesphere-logging-system.svc.cluster.local:9200"
+  opensearch_index: "ks-logstash-log-*"
+
+  sentry_url: "http://my-sentry-web.sentry.svc.cluster.local:80"
+  sentry_org: "ipas"
+  sentry_project: "ipas"
+
+  # MSP notification gateway (report distribution). api_key + wechat ids env-only.
+  msp_api_url: ""   # e.g. http://msg-centre.<ns>.svc.cluster.local:10080

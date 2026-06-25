@@ -1,0 +1,57 @@
+# Local development stack for the control-plane vertical slice.
+#   - postgres: hosts qms_warehouse / platform_metadata (auto-migrated by the BFF on boot)
+#   - sql-rewrite: the L6 masking microservice
+#   - control-plane: the Go BFF, in dev mode (auth bypass + mock adapters)
+#
+# Usage (from control-plane/deploy):  docker compose up --build
+# Then:  curl localhost:8088/healthz
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: cp_app
+      POSTGRES_PASSWORD: devpass
+      POSTGRES_DB: qms_warehouse
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cp_app -d qms_warehouse"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  sql-rewrite:
+    build:
+      context: ../../sql-rewrite
+      dockerfile: Dockerfile
+    image: ipas/sql-rewrite:dev
+    ports:
+      - "8000:8000"
+
+  control-plane:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    image: ipas/control-plane:dev
+    depends_on:
+      postgres:
+        condition: service_healthy
+      sql-rewrite:
+        condition: service_started
+    environment:
+      # Dev escape hatch — NEVER enable in production.
+      CP_DEV_AUTH_BYPASS: "true"
+      # Point the store + rewrite client at the compose services. The bundled
+      # Postgres uses cp_app/devpass — override the config.yaml default (admin,
+      # which is the cluster's role) so compose stays self-contained.
+      CP_POSTGRES_HOST: postgres
+      CP_POSTGRES_USER: cp_app
+      CP_POSTGRES_PASSWORD: devpass
+      CP_POSTGRES_SSLMODE: disable
+      CP_REWRITE_BASE_URL: http://sql-rewrite:8000
+      # NOTE: adapters are always real now. Downstream calls (Trino/ClickHouse/
+      # Airflow/Debezium/DataHub/Prometheus/OpenSearch/Sentry/Keycloak) require
+      # cluster reachability — run `telepresence connect` on the host, or deploy
+      # this image into the cluster. Postgres (platform_metadata) is local here.
+    ports:
+      - "8088:8088"

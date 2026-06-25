@@ -1,0 +1,28 @@
+{
+  "name": "siptory-insight",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SiPTORY InSight — IPAS Data Platform front-end (React + Vite + IBM Carbon)",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@carbon/charts": "^1.27.12",
+    "@carbon/charts-react": "^1.27.12",
+    "@carbon/icons-react": "^11.82.0",
+    "@carbon/react": "^1.110.0",
+    "d3-path": "^3.1.0",
+    "elkjs": "^0.9.3",
+    "gsap": "^3.15.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "sass": "^1.83.0",
+    "vite": "^5.4.11"
+  }
+}

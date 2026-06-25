@@ -1,0 +1,19 @@
+# §8.1: migrate the Airflow DAG dir from hostPath to a Longhorn RWX PVC so the
+# BFF can write rendered DAGs and the scheduler/webserver read them. This also
+# fixes the latent data-loss bug (§13.7) where a rescheduled Pod sees an empty
+# DirectoryOrCreate dir.
+#
+# After applying: patch the airflow scheduler + webserver Deployments to replace
+# the hostPath volume with this PVC, and one-time copy existing DAGs from
+# /data/conf/dags on k8s-worker-01 into the PVC before cutover.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dags-rwx
+  namespace: airflow
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: longhorn          # RWX via Longhorn share-manager (NFS)
+  resources:
+    requests:
+      storage: 2Gi

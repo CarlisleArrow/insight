@@ -1,0 +1,20 @@
+# §9: lock Trino (no auth + federated creds = high-value door). Allow control-plane
+# and spark (if it queries Trino — // TODO confirm §14.3).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lock-trino
+  namespace: trino
+spec:
+  podSelector:
+    matchLabels: { app: trino }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: control-plane }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: spark }
+      ports:
+        - protocol: TCP
+          port: 8080

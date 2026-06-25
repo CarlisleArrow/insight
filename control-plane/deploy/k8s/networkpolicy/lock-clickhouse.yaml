@@ -1,0 +1,22 @@
+# §9: lock ClickHouse (default/empty creds). Allow control-plane and spark
+# (spark writes the CH mirror — §14.3). Covers HTTP 8123 + native 9000.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lock-clickhouse
+  namespace: default
+spec:
+  podSelector:
+    matchLabels: { app: clickhouse }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: control-plane }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: spark }
+      ports:
+        - protocol: TCP
+          port: 8123
+        - protocol: TCP
+          port: 9000

@@ -1,0 +1,17 @@
+# §9: lock the Airflow webserver/API. Allow only control-plane.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lock-airflow
+  namespace: airflow
+spec:
+  podSelector:
+    matchLabels: { component: webserver }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: control-plane }
+      ports:
+        - protocol: TCP
+          port: 8080

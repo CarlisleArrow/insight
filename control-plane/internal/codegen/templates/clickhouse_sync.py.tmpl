@@ -1,0 +1,25 @@
+{{template "spark_header" .}}
+# Gold(Iceberg) -> ClickHouse serving table. Abstracted from silver_to_clickhouse_sync.py.
+# Full reload of the serving table (idempotent); ClickHouse is the low-latency read path.
+CH_HOST = "clickhouse.data-warehouse.svc.cluster.local"
+CH_PORT = "8123"
+CH_TABLE = "{{.Table.TargetNS}}.{{.Table.Name}}"
+SOURCE_REF = "iceberg.{{.Table.SourceRef}}"
+
+def main():
+    spark = build_spark()
+    df = spark.read.format("iceberg").load(SOURCE_REF)
+    # === BEGIN CUSTOM LOGIC ({{.Table.Name}}:pre_sync) ===
+{{.CustomBlock "pre_sync"}}
+    # === END CUSTOM LOGIC ({{.Table.Name}}:pre_sync) ===
+    logger.info("syncing %d rows -> ClickHouse %s", df.count(), CH_TABLE)
+    (df.write.format("jdbc")
+        .option("url", f"jdbc:clickhouse://{CH_HOST}:{CH_PORT}")
+        .option("dbtable", CH_TABLE)
+        .option("driver", "com.clickhouse.jdbc.ClickHouseDriver")
+        .mode("overwrite").save())
+    logger.info("ClickHouse sync done")
+    spark.stop()
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,57 @@
+{{template "spark_header" .}}
+# Silver dimension (SCD2): track history with effective windows + is_current flag.
+# Abstracted from dimension_scd_etl.py — MERGE on business key, close changed rows, insert new versions.
+from pyspark.sql.functions import expr, sha2, concat_ws, current_date
+
+TARGET = "iceberg.{{.Table.TargetNS}}.{{.Table.Name}}"
+SOURCE_REF = "{{.Table.SourceRef}}"
+BUSINESS_KEYS = [{{range $i, $c := .Table.Columns}}{{if eq $c.Role "business_key"}}"{{$c.Name}}", {{end}}{{end}}]
+TRACKED_COLS = [{{range $i, $c := .Table.Columns}}{{if $c.Scd2Track}}"{{$c.Name}}", {{end}}{{end}}]
+
+def transform(df):
+    # === BEGIN CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+{{.CustomBlock "transform"}}
+    # === END CUSTOM LOGIC ({{.Table.Name}}:transform) ===
+    return df
+
+def ensure_table(spark):
+    cols = ", ".join([
+{{range .Table.Columns}}        "{{.Name}} {{.Dtype}}",
+{{end}}        "_surrogate_key string", "_hash string",
+        "_effective_from date", "_effective_to date", "_is_current boolean",
+    ])
+    spark.sql(f"CREATE TABLE IF NOT EXISTS {TARGET} ({cols}) USING iceberg")
+
+def main():
+    spark = build_spark()
+    ensure_table(spark)
+    src = spark.read.format("iceberg").load(SOURCE_REF)
+    df = src.select(
+{{range .Table.Columns}}        {{if .SourceExpr}}expr("{{.SourceExpr}}").cast("{{.Dtype}}").alias("{{.Name}}"){{else}}col("{{.Name}}").cast("{{.Dtype}}"){{end}},
+{{end}}    )
+    df = transform(df)
+    df = (df
+          .withColumn("_hash", sha2(concat_ws("||", *[col(c) for c in TRACKED_COLS]), 256))
+          .withColumn("_surrogate_key", sha2(concat_ws("||", *[col(c) for c in BUSINESS_KEYS]), 256))
+          .withColumn("_effective_from", current_date())
+          .withColumn("_effective_to", lit(None).cast("date"))
+          .withColumn("_is_current", lit(True)))
+    df.createOrReplaceTempView("incoming")
+
+    key_join = " AND ".join([f"t.{k}=s.{k}" for k in BUSINESS_KEYS])
+    # close current rows whose tracked attributes changed
+    spark.sql(f"""
+        MERGE INTO {TARGET} t USING incoming s ON {key_join} AND t._is_current = true
+        WHEN MATCHED AND t._hash <> s._hash THEN
+            UPDATE SET t._is_current = false, t._effective_to = current_date()
+    """)
+    # insert new versions (new keys + changed)
+    spark.sql(f"""
+        MERGE INTO {TARGET} t USING incoming s ON {key_join} AND t._is_current = true
+        WHEN NOT MATCHED THEN INSERT *
+    """)
+    logger.info("SCD2 merge complete -> %s", TARGET)
+    spark.stop()
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,175 @@
+# ============================================================
+# IPAS QMS Business Glossary — 业务指标定义
+#
+# 指标口径来自 gold_qms 聚合/SPC 表与 silver_qms 化验事实表的真实字段。
+# custom_properties 里：
+#   formula        指标公式（业务口径）
+#   unit           单位
+#   source_dataset 物化来源表（查询面：Iceberg gold_qms / silver_qms）
+#   source_column  对应字段
+#   status         治理状态（Certified / Review / Draft）
+#
+# 导入：datahub ingest -c glossary-recipe.yml   （见同目录 glossary-recipe.yml）
+# ============================================================
+version: "1"
+source: IPAS-QMS
+owners:
+  users:
+    - datahub
+
+nodes:
+  # ---------------------------------------------------------
+  - name: 质量合格指标
+    description: 化验质量的合格/不合格/预警类日度 KPI，来源 gold_qms 聚合表。
+    terms:
+      - name: 合格率
+        description: 当日化验判定为合格的记录数占总化验数的比例，衡量整体质量水平。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "qualified_count / total_analysis_count"
+          unit: "%"
+          source_dataset: "gold_qms.agg_daily_summary"
+          source_column: "qualified_rate"
+          status: "Certified"
+
+      - name: 不合格率
+        description: 按工序/班次统计的不合格化验占比，是合格率的反向指标，用于异常工序定位。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "unqualified_count / total_analyses"
+          unit: "%"
+          source_dataset: "gold_qms.agg_qualification_rate_daily"
+          source_column: "unqualified_rate"
+          status: "Certified"
+
+      - name: 预警率
+        description: 按工序/班次统计的预警化验占比（结果落在控制限内但触及预警条件）。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "warning_count / total_analyses"
+          unit: "%"
+          source_dataset: "gold_qms.agg_warning_statistics_daily"
+          source_column: "warning_rate"
+          status: "Certified"
+
+      - name: 规格内合格率
+        description: 化验结果落在规格上下限（LSL~USL）之内的比例，反映符合规格的程度。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "1 - (oospec_points / n_samples)"
+          unit: "%"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "within_spec_rate"
+          status: "Certified"
+
+  # ---------------------------------------------------------
+  - name: 过程能力指标
+    description: ISO 7870 / AIAG 过程能力与性能指数，来源 gold_qms.spc_capability_daily。
+    terms:
+      - name: 过程能力指数 Cp
+        description: 短期过程能力，仅看离散程度（组内标准差），不考虑中心偏移。Cp≥1.33 为可接受。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "(USL - LSL) / (6 * sigma_within)"
+          unit: "无量纲"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "cp"
+          status: "Certified"
+
+      - name: 过程能力指数 Cpk
+        description: 短期过程能力（含中心偏移），取规格上/下侧能力的较小值。Cpk≥1.33 为可接受。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "min(USL - xbar, xbar - LSL) / (3 * sigma_within)"
+          unit: "无量纲"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "cpk"
+          status: "Certified"
+
+      - name: 过程性能指数 Pp
+        description: 长期过程性能，基于整体标准差（含组间变异），评估实际长期表现。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "(USL - LSL) / (6 * sigma_overall)"
+          unit: "无量纲"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "pp"
+          status: "Review"
+
+      - name: 过程性能指数 Ppk
+        description: 长期过程性能（含中心偏移），基于整体标准差。与 Cpk 的差距反映组间漂移。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "min(USL - xbar, xbar - LSL) / (3 * sigma_overall)"
+          unit: "无量纲"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "ppk"
+          status: "Review"
+
+  # ---------------------------------------------------------
+  - name: SPC 控制与告警
+    description: 控制图判异（Nelson/AIAG 规则）与告警类指标，来源 gold_qms.spc_* 控制图表。
+    terms:
+      - name: 失控点数
+        description: 当期控制图上触发判异规则（超控制限 R1、连续同侧 R2、连续趋势 R3 等）的点数之和。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "sum(ooc_points across R1/R2/R3 rules)"
+          unit: "个"
+          source_dataset: "gold_qms.spc_capability_daily"
+          source_column: "ooc_total"
+          status: "Certified"
+
+      - name: 月度告警率
+        description: 当月控制图判异点数占当月总监控点数的比例，衡量过程稳定性的月度趋势。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "total_alarm_count / total_points"
+          unit: "%"
+          source_dataset: "gold_qms.spc_monthly_alarm_rate"
+          source_column: "alarm_rate"
+          status: "Certified"
+
+      - name: 不良率 (P 图)
+        description: 计数型 P 控制图的不良比例，缺陷品数占样本量之比。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "np / n"
+          unit: "%"
+          source_dataset: "gold_qms.spc_p_chart"
+          source_column: "p"
+          status: "Certified"
+
+      - name: 单位缺陷数 (C 图)
+        description: 计数型 C 控制图的单位缺陷数，衡量固定检验单元内的缺陷个数。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "count(defects per inspection unit)"
+          unit: "个"
+          source_dataset: "gold_qms.spc_c_chart"
+          source_column: "c"
+          status: "Certified"
+
+  # ---------------------------------------------------------
+  - name: 化验度量
+    description: 单次化验的原子测量与判定，来源 silver_qms.fact_chemical_results（查询面 Iceberg）。
+    terms:
+      - name: 化验结果值
+        description: 单次化验项目的测量值，是上层一切合格率/SPC 指标的原子来源。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "raw measured value"
+          unit: "随化验项目 (item_unit)"
+          source_dataset: "silver_qms.fact_chemical_results"
+          source_column: "result_value"
+          status: "Certified"
+
+      - name: 判定结果
+        description: 单次化验对照控制/规格范围得出的合格判定（OK/NG），合格率统计的判定依据。
+        term_source: "INTERNAL"
+        custom_properties:
+          formula: "OK if control_range_min <= result_value <= control_range_max else NG"
+          unit: "枚举 (OK/NG)"
+          source_dataset: "silver_qms.fact_chemical_results"
+          source_column: "judgment"
+          status: "Certified"

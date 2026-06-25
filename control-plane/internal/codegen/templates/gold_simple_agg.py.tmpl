@@ -1,0 +1,35 @@
+{{template "spark_header" .}}
+# Gold simple aggregation: GROUP BY dimensions + sum/count/avg/rate measures.
+# Abstracted from gold_aggregation_etl.py. NOTE: SPC / rolling-window / control-limit
+# logic is NOT generated — author it inside the CUSTOM LOGIC block below.
+from pyspark.sql.functions import expr
+
+TARGET = "iceberg.{{.Table.TargetNS}}.{{.Table.Name}}"
+SOURCE_REF = "{{.Table.SourceRef}}"
+GROUP_BY = [{{range .Table.Columns}}{{if eq .Role "attribute"}}"{{.Name}}", {{end}}{{end}}]
+
+def measures(df):
+    from pyspark.sql import functions as F
+    aggs = [
+{{range .Table.Columns}}{{if .AggFunc}}        F.{{.AggFunc}}({{if .SourceExpr}}expr("{{.SourceExpr}}"){{else}}col("{{.Name}}"){{end}}).alias("{{.Name}}"),
+{{end}}{{end}}    ]
+    return df.groupBy(*GROUP_BY).agg(*aggs)
+
+def post_agg(df):
+    # === BEGIN CUSTOM LOGIC ({{.Table.Name}}:post_agg) ===
+{{.CustomBlock "post_agg"}}
+    # === END CUSTOM LOGIC ({{.Table.Name}}:post_agg) ===
+    return df
+
+def main():
+    spark = build_spark()
+    src = spark.read.format("iceberg").load(SOURCE_REF)
+    out = measures(src)
+    out = post_agg(out)
+    out = out.withColumn("_computed_at", current_timestamp())
+    logger.info("writing %d agg rows -> %s", out.count(), TARGET)
+    out.writeTo(TARGET).createOrReplace()
+    spark.stop()
+
+if __name__ == "__main__":
+    main()

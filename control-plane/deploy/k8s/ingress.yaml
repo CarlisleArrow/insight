@@ -1,0 +1,22 @@
+# Single front-end + API entry via ingress-nginx 172.16.202.51 (§4.2).
+# The front-end (IBM Carbon SPA) and the BFF API share one host; /api routes to
+# the control plane.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: insight
+  namespace: control-plane
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: insight.siptory.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: control-plane
+                port: { number: 8088 }

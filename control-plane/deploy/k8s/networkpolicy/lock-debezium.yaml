@@ -1,0 +1,17 @@
+# §9: default-deny ingress to Debezium Connect; allow only the control-plane ns.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lock-debezium
+  namespace: data-warehouse
+spec:
+  podSelector:
+    matchLabels: { app: debezium-connect }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: control-plane }
+      ports:
+        - protocol: TCP
+          port: 8083

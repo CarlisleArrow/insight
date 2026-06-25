@@ -1,0 +1,24 @@
+# §9: lock the Iceberg REST catalog. Allow control-plane, spark (ETL writes),
+# and airflow (orchestration). Trino reaches Iceberg via its own catalog config.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: lock-iceberg
+  namespace: data-warehouse
+spec:
+  podSelector:
+    matchLabels: { app: iceberg-rest-catalog }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: control-plane }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: spark }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: airflow }
+        - namespaceSelector:
+            matchLabels: { kubernetes.io/metadata.name: trino }
+      ports:
+        - protocol: TCP
+          port: 8181
