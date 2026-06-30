@@ -164,9 +164,19 @@ func (h *Handlers) compileBuildSpec(ctx context.Context, s dto.BuildSpec) (strin
 	if len(orders) > 0 {
 		b.WriteString(" ORDER BY " + strings.Join(orders, ", "))
 	}
+	// Runtime row-limit ceiling (system_config query.default_row_limit). A
+	// request may ask for fewer; anything above the ceiling (or unset) is capped.
+	maxLimit := h.configInt(ctx, "query.default_row_limit", 10000)
 	limit := s.Limit
-	if limit <= 0 || limit > 10000 {
-		limit = 1000
+	if limit <= 0 {
+		if maxLimit < 1000 {
+			limit = maxLimit
+		} else {
+			limit = 1000
+		}
+	}
+	if limit > maxLimit {
+		limit = maxLimit
 	}
 	fmt.Fprintf(&b, " LIMIT %d", limit)
 	return b.String(), nil

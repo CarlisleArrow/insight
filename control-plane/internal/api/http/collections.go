@@ -11,10 +11,26 @@ import (
 	pg "gitlab.siptory.com/ipas/control-plane/internal/store/postgres"
 )
 
+// tenantScoped marks the UI-owned collections that are partitioned per tenant
+// (§2 logical scoping). Rows are visible to their owning tenant plus shared
+// (NULL-tenant) rows. Platform-global collections (notification) are not listed
+// here and stay visible to everyone.
+var tenantScoped = map[string]bool{
+	"dashboard": true, "report": true, "metric": true, "dq_rule": true, "api_key": true,
+}
+
 // collectionList returns GET handler for a JSONB-backed platform collection.
 func (h *Handlers) collectionList(name string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		items, err := h.Store.ListDocs(r.Context(), name)
+		var (
+			items []pg.Doc
+			err   error
+		)
+		if tenantScoped[name] {
+			items, err = h.Store.ListDocsForTenant(r.Context(), name, callerTenant(r.Context()))
+		} else {
+			items, err = h.Store.ListDocs(r.Context(), name)
+		}
 		if err != nil {
 			h.Log.Error("list collection", "name", name, "err", err.Error())
 			writeError(w, http.StatusInternalServerError, "list failed")
@@ -32,7 +48,7 @@ func (h *Handlers) collectionCreate(name string) http.HandlerFunc {
 			writeError(w, http.StatusBadRequest, "invalid request body")
 			return
 		}
-		created, err := h.Store.CreateDoc(r.Context(), name, doc)
+		created, err := h.createDoc(r, name, doc)
 		if err != nil {
 			h.Log.Error("create collection", "name", name, "err", err.Error())
 			writeError(w, http.StatusInternalServerError, "create failed")
@@ -40,6 +56,15 @@ func (h *Handlers) collectionCreate(name string) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusCreated, created)
 	}
+}
+
+// createDoc inserts a doc, stamping the caller's tenant for tenant-scoped
+// collections (§2). Centralizes the branch so every create path shares it.
+func (h *Handlers) createDoc(r *http.Request, name string, doc pg.Doc) (pg.Doc, error) {
+	if tenantScoped[name] {
+		return h.Store.CreateDocForTenant(r.Context(), name, doc, callerTenant(r.Context()))
+	}
+	return h.Store.CreateDoc(r.Context(), name, doc)
 }
 
 // collectionUpdate returns a PUT handler that replaces a doc by id.
@@ -131,7 +156,7 @@ func (h *Handlers) createKey(w http.ResponseWriter, r *http.Request, owner strin
 	if _, ok := doc["used"]; !ok {
 		doc["used"] = "never"
 	}
-	created, err := h.Store.CreateDoc(r.Context(), "api_key", doc)
+	created, err := h.createDoc(r, "api_key", doc)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "create failed")
 		return

@@ -116,11 +116,19 @@ func main() {
 		log.Warn("MSP not configured — report distribution disabled (generate + download only)")
 	}
 
+	// Runtime config + DB-backed RBAC resolver (§2). The resolver merges static
+	// Keycloak groups, bootstrap admins, DB role bindings, and a default-role
+	// fallback so real users (whose tokens carry no groups) are still authorized.
+	configSvc := authz.NewConfigService(store)
+	rbacResolver := authz.NewRBAC(store, configSvc, cfg.Auth.BootstrapAdmins, cfg.Auth.DefaultRole)
+
 	handlers := &httpapi.Handlers{
 		Log:           log,
 		Metrics:       telemetry.NewMetrics(),
 		Store:         store,
 		Resolver:      authz.NewResolver(store),
+		RBAC:          rbacResolver,
+		Config:        configSvc,
 		Rewrite:       rewrite,
 		Router:        router,
 		Adapters:      adapters,

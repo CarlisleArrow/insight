@@ -1,6 +1,7 @@
 package http
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 
@@ -37,4 +38,23 @@ func boolOr(p *bool, def bool) bool {
 		return def
 	}
 	return *p
+}
+
+// configInt reads a runtime system_config int (§4), returning def when the
+// config service is unset (e.g. tests) or the key is absent.
+func (h *Handlers) configInt(ctx context.Context, key string, def int) int {
+	if h.Config == nil {
+		return def
+	}
+	return h.Config.Int(ctx, key, def)
+}
+
+// callerTenant returns the caller's resolved tenant id (§2 multi-tenancy), or ""
+// when no resolver ran. Used to stamp tenant_id on created resources and to
+// scope tenant-owned collections.
+func callerTenant(ctx context.Context) string {
+	if az, ok := auth.AuthzFromContext(ctx); ok && az != nil {
+		return az.Tenant
+	}
+	return ""
 }

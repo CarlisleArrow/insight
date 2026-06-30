@@ -14,6 +14,12 @@ $ErrorActionPreference = "Stop"
 # --- Dev auth bypass: skip Keycloak, inject a synthetic data-platform-admin caller.
 $env:CP_DEV_AUTH_BYPASS = "true"
 
+# --- DB-backed RBAC (§2). Keycloak carries no groups, so real users are authorized
+#     from rbac_role/rbac_binding. bootstrap_admins (comma list) are always full
+#     admins so the first prod login has an administrator before any binding exists.
+#     In production set CP_DEV_AUTH_BYPASS=false and list your real username(s)/email(s).
+if (-not $env:CP_AUTH_BOOTSTRAP_ADMINS) { $env:CP_AUTH_BOOTSTRAP_ADMINS = "" }   # e.g. "pengluyi,admin@siptory.com"
+
 # --- Secrets (override with your real values; these are NOT committed).
 #     cp_app is the platform_metadata role (§4.1). Set its real password here.
 if (-not $env:CP_POSTGRES_PASSWORD)          { $env:CP_POSTGRES_PASSWORD = "Pg123654" }

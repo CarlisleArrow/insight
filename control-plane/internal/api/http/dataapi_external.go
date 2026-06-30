@@ -79,9 +79,16 @@ func (h *Handlers) DataAPIServe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 2. Rate limit (per api + caller).
-	if api.RateLimitRPM != nil && h.APILimiter != nil {
-		if !h.APILimiter.allow(api.APIID+"|"+caller, *api.RateLimitRPM) {
+	// 2. Rate limit (per api + caller). The endpoint's explicit rate_limit_rpm
+	// wins; otherwise fall back to the runtime default (dataapi.default_rate_limit_rpm).
+	rpm := 0
+	if api.RateLimitRPM != nil {
+		rpm = *api.RateLimitRPM
+	} else {
+		rpm = h.configInt(ctx, "dataapi.default_rate_limit_rpm", 0)
+	}
+	if rpm > 0 && h.APILimiter != nil {
+		if !h.APILimiter.allow(api.APIID+"|"+caller, rpm) {
 			writeError(w, http.StatusTooManyRequests, "rate limit exceeded")
 			return
 		}

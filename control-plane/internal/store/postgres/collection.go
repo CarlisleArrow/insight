@@ -39,6 +39,61 @@ func (s *Store) ListDocs(ctx context.Context, collection string) ([]Doc, error) 
 	return out, rows.Err()
 }
 
+// ListDocsForTenant returns a collection's rows visible to a tenant (§2 logical
+// scoping): rows owned by the tenant plus shared rows (tenant_id IS NULL, e.g.
+// pre-tenancy data). An empty tenant disables scoping (returns all rows).
+func (s *Store) ListDocsForTenant(ctx context.Context, collection, tenant string) ([]Doc, error) {
+	if tenant == "" {
+		return s.ListDocs(ctx, collection)
+	}
+	rows, err := s.pool.Query(ctx, `
+		SELECT id::text, doc FROM platform_metadata.collection
+		WHERE collection = $1 AND (tenant_id IS NULL OR tenant_id::text = $2)
+		ORDER BY created_at DESC`, collection, tenant)
+	if err != nil {
+		return nil, fmt.Errorf("list %s (tenant): %w", collection, err)
+	}
+	defer rows.Close()
+	out := []Doc{}
+	for rows.Next() {
+		var id string
+		var raw []byte
+		if err := rows.Scan(&id, &raw); err != nil {
+			return nil, err
+		}
+		doc := Doc{}
+		if len(raw) > 0 {
+			if err := json.Unmarshal(raw, &doc); err != nil {
+				return nil, err
+			}
+		}
+		doc["id"] = id
+		out = append(out, doc)
+	}
+	return out, rows.Err()
+}
+
+// CreateDocForTenant inserts a new row owned by the given tenant (§2). An empty
+// tenant stores a shared (global) row, equivalent to CreateDoc.
+func (s *Store) CreateDocForTenant(ctx context.Context, collection string, doc Doc, tenant string) (Doc, error) {
+	if tenant == "" {
+		return s.CreateDoc(ctx, collection, doc)
+	}
+	delete(doc, "id")
+	raw, err := json.Marshal(doc)
+	if err != nil {
+		return nil, fmt.Errorf("marshal: %w", err)
+	}
+	var id string
+	if err := s.pool.QueryRow(ctx, `
+		INSERT INTO platform_metadata.collection (collection, doc, tenant_id)
+		VALUES ($1, $2, $3) RETURNING id::text`, collection, raw, tenant).Scan(&id); err != nil {
+		return nil, fmt.Errorf("create %s (tenant): %w", collection, err)
+	}
+	doc["id"] = id
+	return doc, nil
+}
+
 // GetDoc returns a single row by id (with "id" merged), or an error if absent.
 func (s *Store) GetDoc(ctx context.Context, collection, id string) (Doc, error) {
 	var raw []byte

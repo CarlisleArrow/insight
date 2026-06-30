@@ -152,6 +152,13 @@ func (s *Store) UpdateDataAPI(ctx context.Context, a DataAPI) (DataAPI, error) {
 	return s.GetDataAPI(ctx, a.APIID)
 }
 
+// SetDataAPITenant stamps the owning tenant on an endpoint (§2 logical scoping).
+func (s *Store) SetDataAPITenant(ctx context.Context, id, tenant string) error {
+	_, err := s.pool.Exec(ctx,
+		`UPDATE platform_metadata.data_api SET tenant_id=$2 WHERE api_id=$1`, id, nullable(tenant))
+	return err
+}
+
 // SetDataAPIStatus flips an endpoint's lifecycle status (publish/deprecate).
 func (s *Store) SetDataAPIStatus(ctx context.Context, id, status string) error {
 	_, err := s.pool.Exec(ctx,

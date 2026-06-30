@@ -294,7 +294,15 @@ function AccessControl({ notify, lang }) {
   const roles = useCollection('accessRoles');
   const [userModal, setUserModal] = useState(null);
   const [roleModal, setRoleModal] = useState(null);
+  const [rolesAssign, setRolesAssign] = useState(null); // { user, current: [names] }
   const [del, setDel] = useState(null); // { kind, row }
+
+  // Open the role-assignment modal for a user, pre-loading their current roles.
+  const openRolesAssign = (user) => {
+    api.getUserRoles(user.username || user.id)
+      .then((d) => setRolesAssign({ user, current: d.roles || [] }))
+      .catch(() => setRolesAssign({ user, current: [] }));
+  };
   const userHeaders = [
     { key: 'name', header: tr(lang, 'User') }, { key: 'email', header: tr(lang, 'Email'), mono: true }, { key: 'role', header: tr(lang, 'Role') }, { key: 'status', header: tr(lang, 'Status') }, { key: 'ofw', header: '' },
   ];
@@ -315,7 +323,7 @@ function AccessControl({ notify, lang }) {
                 renderCell={(r, k) => {
                   if (k === 'role') return <Tag type="cool-gray" size="sm">{tr(lang, r.role)}</Tag>;
                   if (k === 'status') return <StatusDot kind={r.status === 'Active' ? 'active' : 'gray'}>{tr(lang, r.status)}</StatusDot>;
-                  if (k === 'ofw') return <RowMenu onEdit={() => setUserModal({ mode: 'edit', row: r })} onDelete={() => setDel({ kind: 'user', row: r })} />;
+                  if (k === 'ofw') return <RowMenu onEdit={() => setUserModal({ mode: 'edit', row: r })} onRoles={() => openRolesAssign(r)} onDelete={() => setDel({ kind: 'user', row: r })} />;
                   return r[k];
                 }} />
             </div>
@@ -367,6 +375,21 @@ function AccessControl({ notify, lang }) {
         <FormModal open label={tr(lang, 'Access control')} title={roleModal.mode === 'create' ? tr(lang, 'Create role') : tr(lang, 'Edit role')} submitText={roleModal.mode === 'create' ? tr(lang, 'Create') : tr(lang, 'Save')} schema={SCHEMAS.accessRole} initial={roleModal.row}
           onSubmit={(v) => { if (roleModal.mode === 'create') roles.add(v); else roles.update(roleModal.row.id, v); setRoleModal(null); notify && notify({ kind: 'success', title: roleModal.mode === 'create' ? tr(lang, 'Role created.') : tr(lang, 'Role updated.') }); }}
           onClose={() => setRoleModal(null)} />
+      )}
+      {rolesAssign && (
+        <FormModal open label={tr(lang, 'Access control')}
+          title={`${tr(lang, 'Manage roles')} — ${rolesAssign.user.name || rolesAssign.user.username}`}
+          submitText={tr(lang, 'Save')}
+          schema={[{ key: 'roles', label: tr(lang, 'Assigned roles'), type: 'multiselect', items: roles.items.map((x) => x.role) }]}
+          initial={{ roles: rolesAssign.current }}
+          onSubmit={(v) => {
+            const username = rolesAssign.user.username || rolesAssign.user.id;
+            api.setUserRoles(username, v.roles || [])
+              .then(() => notify && notify({ kind: 'success', title: tr(lang, 'Roles updated.') }))
+              .catch((e) => notify && notify({ kind: 'error', title: tr(lang, 'Update failed.'), subtitle: e.detail || e.message }));
+            setRolesAssign(null);
+          }}
+          onClose={() => setRolesAssign(null)} />
       )}
       <ConfirmDelete open={!!del} title={tr(lang, 'Remove')} body={del ? `${tr(lang, 'Remove')} "${del.row.name || del.row.role}"?` : ''} onConfirm={remove} onClose={() => setDel(null)} />
     </div>

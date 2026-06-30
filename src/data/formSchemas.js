@@ -1,5 +1,12 @@
 /* Field schemas that drive create/edit FormModals.
-   type: 'text' | 'password' | 'textarea' | 'select'. */
+   type: 'text' | 'password' | 'textarea' | 'select' | 'multiselect'. */
+
+// Coarse feature permissions (mirrors auth.Permission in the BFF). Roles grant
+// a subset; the BFF enforces them per-request.
+export const PERMISSIONS = [
+  'query:run', 'datasets:read', 'pipelines:read', 'pipelines:write', 'catalog:read',
+  'policies:read', 'policies:write', 'analytics:write', 'modeling:write', 'admin:all',
+];
 
 export const SCHEMAS = {
   // ---- Admin ----
@@ -10,17 +17,15 @@ export const SCHEMAS = {
     { key: 'org', label: 'Organization', type: 'select', items: ['Manufacturing', 'Finance', 'Logistics', 'Operations', 'Growth'] },
     { key: 'status', label: 'Status', type: 'select', items: ['Active', 'Invited', 'Suspended'] },
   ],
+  // members/projects are computed by the BFF (membership count); not editable.
   adminOrgs: [
     { key: 'org', label: 'Organization', type: 'text' },
-    { key: 'members', label: 'Members', type: 'text', default: '0' },
-    { key: 'projects', label: 'Projects', type: 'text', default: '0' },
     { key: 'owner', label: 'Owner', type: 'text' },
   ],
   adminConfig: [
-    { key: 'key', label: 'Setting', type: 'text', placeholder: 'feature.flag.x' },
-    { key: 'val', label: 'Value', type: 'text' },
+    { key: 'key', label: 'Setting', type: 'text', placeholder: 'query.default_row_limit' },
+    { key: 'val', label: 'Value', type: 'text', helper: 'Numbers/booleans are stored typed; e.g. 10000, true, viewer' },
     { key: 'scope', label: 'Scope', type: 'select', items: ['Global', 'Manufacturing', 'Finance', 'Logistics', 'Operations'] },
-    { key: 'by', label: 'Updated by', type: 'text', default: 'L. Marsh' },
   ],
   adminApi: [
     { key: 'name', label: 'Key name', type: 'text', placeholder: 'bi-readonly' },
@@ -93,18 +98,20 @@ export const SCHEMAS = {
     { key: 'role', label: 'Role', type: 'select', items: ['Data Engineer', 'Analyst', 'Steward', 'Viewer'] },
     { key: 'status', label: 'Status', type: 'select', items: ['Active', 'Invited'] },
   ],
+  // Roles carry an enforced permission set (rbac_role). scope/members/model are
+  // computed by the BFF for the table; only name/description/permissions edit.
   accessRole: [
-    { key: 'role', label: 'Role', type: 'text' },
-    { key: 'members', label: 'Members', type: 'text', default: '0' },
-    { key: 'scope', label: 'Scope', type: 'text', placeholder: 'Read Gold · query' },
-    { key: 'model', label: 'Model', type: 'select', items: ['RBAC', 'ABAC'] },
+    { key: 'role', label: 'Role', type: 'text', placeholder: 'fab1-analyst' },
+    { key: 'description', label: 'Description', type: 'text', placeholder: 'What this role grants' },
+    { key: 'permissions', label: 'Permissions', type: 'multiselect', items: PERMISSIONS },
   ],
 };
 
 export function emptyValues(schema, initial) {
   const out = {};
   for (const f of schema) {
-    if (initial && initial[f.key] != null) out[f.key] = initial[f.key];
+    if (f.type === 'multiselect') out[f.key] = Array.isArray(initial?.[f.key]) ? initial[f.key] : [];
+    else if (initial && initial[f.key] != null) out[f.key] = initial[f.key];
     else if (f.default != null) out[f.key] = f.default;
     else if (f.type === 'select') out[f.key] = f.items[0];
     else out[f.key] = '';

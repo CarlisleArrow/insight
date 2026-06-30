@@ -67,3 +67,30 @@ func HasPermission(groups []string, perm Permission) bool {
 	}
 	return false
 }
+
+// PermissionsForGroups returns the de-duplicated permission set granted by the
+// caller's coarse groups. Used by the DB-backed effective-permission resolver
+// to seed the static-group baseline before adding role-binding permissions.
+func PermissionsForGroups(groups []string) []Permission {
+	seen := map[Permission]bool{}
+	out := []Permission{}
+	for _, g := range groups {
+		for _, p := range permsForGroup(g) {
+			if !seen[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	return out
+}
+
+// AllPermissions returns every defined feature permission. The resolver uses it
+// to expand the `admin:all` wildcard so an admin role passes every gate.
+func AllPermissions() []Permission {
+	return []Permission{
+		PermQueryRun, PermDatasetsRead, PermPipelinesRead, PermPipelinesWrite,
+		PermCatalogRead, PermPoliciesRead, PermPoliciesWrite,
+		PermAnalyticsWrite, PermModelingWrite, PermAdmin,
+	}
+}

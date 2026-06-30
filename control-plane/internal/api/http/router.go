@@ -26,7 +26,14 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 
 	// Authenticated API surface.
 	r.Route("/api", func(api chi.Router) {
-		api.Use(auth.Middleware(verifier, h.Log))
+		// Pass the DB-backed effective-permission resolver when configured; a
+		// nil *authz.RBAC must become a nil interface so the middleware falls
+		// back to coarse-group checks (router_test has no store).
+		var resolver auth.Resolver
+		if h.RBAC != nil {
+			resolver = h.RBAC
+		}
+		api.Use(auth.Middleware(verifier, h.Log, resolver))
 
 		// Home overview (aggregate).
 		api.With(auth.RequirePermission(auth.PermDatasetsRead)).Get("/overview", h.Overview)
@@ -102,10 +109,12 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Post("/access/users", h.AccessCreateUser)
 		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Put("/access/users/{username}", h.AccessUpdateUser)
 		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Delete("/access/users/{username}", h.AccessDeleteUser)
-		api.With(auth.RequirePermission(auth.PermPoliciesRead)).Get("/access/roles", h.collectionList("access_role"))
-		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Post("/access/roles", h.collectionCreate("access_role"))
-		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Put("/access/roles/{id}", h.collectionUpdate("access_role"))
-		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Delete("/access/roles/{id}", h.collectionDelete("access_role"))
+		api.With(auth.RequirePermission(auth.PermPoliciesRead)).Get("/access/roles", h.AccessRoles)
+		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Post("/access/roles", h.AccessCreateRole)
+		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Put("/access/roles/{id}", h.AccessUpdateRole)
+		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Delete("/access/roles/{id}", h.AccessDeleteRole)
+		api.With(auth.RequirePermission(auth.PermPoliciesRead)).Get("/access/users/{username}/roles", h.AccessUserRoles)
+		api.With(auth.RequirePermission(auth.PermPoliciesWrite)).Put("/access/users/{username}/roles", h.AccessSetUserRoles)
 
 		// Monitoring & Ops.
 		api.With(auth.RequirePermission(auth.PermPipelinesRead)).Get("/ops/runs", h.OpsRuns)
@@ -173,18 +182,18 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/users/{username}", h.AdminUpdateUser)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/users/{username}", h.AdminDeleteUser)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/audit", h.AdminAudit)
-		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/orgs", h.collectionList("org"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/orgs", h.collectionCreate("org"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/orgs/{id}", h.collectionUpdate("org"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/orgs/{id}", h.collectionDelete("org"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/config", h.collectionList("system_config"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/config", h.collectionCreate("system_config"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/config/{id}", h.collectionUpdate("system_config"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/config/{id}", h.collectionDelete("system_config"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/tenancy", h.collectionList("tenant"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/tenancy", h.collectionCreate("tenant"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/tenancy/{id}", h.collectionUpdate("tenant"))
-		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/tenancy/{id}", h.collectionDelete("tenant"))
+		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/orgs", h.AdminOrgs)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/orgs", h.AdminCreateOrg)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/orgs/{id}", h.AdminUpdateOrg)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/orgs/{id}", h.AdminDeleteOrg)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/config", h.AdminConfig)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/config", h.AdminSetConfig)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/config/{id}", h.AdminUpdateConfig)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/config/{id}", h.AdminDeleteConfig)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/tenancy", h.AdminTenancy)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/tenancy", h.AdminCreateTenant)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Put("/admin/tenancy/{id}", h.AdminUpdateTenant)
+		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/tenancy/{id}", h.AdminDeleteTenant)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/apikeys", h.AdminListKeys)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/apikeys", h.AdminCreateKey)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/apikeys/{id}", h.AdminDeleteKey)

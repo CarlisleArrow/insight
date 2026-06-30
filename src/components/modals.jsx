@@ -21,6 +21,21 @@ export function FormModal({ open, title, label, schema, initial, submitText = 'S
     if (f.type === 'select') {
       return <Picker key={f.key} label={f.label} items={f.items} value={v} onChange={(val) => set(f.key, val)} />;
     }
+    if (f.type === 'multiselect') {
+      const arr = Array.isArray(v) ? v : [];
+      const toggle = (item, checked) => set(f.key, checked ? [...arr, item] : arr.filter((x) => x !== item));
+      return (
+        <div key={f.key}>
+          <div className="cds--label" style={{ marginBottom: 6 }}>{f.label}</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 20px' }}>
+            {f.items.map((item) => (
+              <Checkbox key={item} id={fid()} labelText={item} checked={arr.includes(item)}
+                onChange={(_, { checked }) => toggle(item, checked)} />
+            ))}
+          </div>
+        </div>
+      );
+    }
     if (f.type === 'textarea') {
       return <TextArea key={f.key} id={fid()} labelText={f.label} placeholder={f.placeholder} value={v} onChange={(e) => set(f.key, e.target.value)} rows={3} />;
     }

@@ -102,6 +102,10 @@ export const createAccessUser = (u) => req('/access/users', { method: 'POST', bo
 export const updateAccessUser = (username, u) => req(`/access/users/${encodeURIComponent(username)}`, { method: 'PUT', body: JSON.stringify(u) });
 export const deleteAccessUser = (username) => req(`/access/users/${encodeURIComponent(username)}`, { method: 'DELETE' });
 export const accessRoles = resource('/access/roles');
+// Per-user role bindings (RBAC). setUserRoles replaces a user's bound roles.
+export const getUserRoles = (username) => req(`/access/users/${encodeURIComponent(username)}/roles`);
+export const setUserRoles = (username, roles) =>
+  req(`/access/users/${encodeURIComponent(username)}/roles`, { method: 'PUT', body: JSON.stringify({ roles }) });
 
 /* ---------- Modeling ---------- */
 export const metrics = resource('/metrics');

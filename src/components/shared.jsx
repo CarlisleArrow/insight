@@ -62,7 +62,7 @@ export function SubSwitch({ items, value, onChange }) {
 /* ---- overflow row menu (real Carbon component) ----
    Pass handlers (onView/onEdit/onDuplicate/onDelete) to wire actions,
    or `items` (legacy) for a static menu. */
-export function RowMenu({ onView, onEdit, onDuplicate, onDelete, items }) {
+export function RowMenu({ onView, onEdit, onRoles, onDuplicate, onDelete, items }) {
   const stop = (fn) => (e) => { if (e && e.stopPropagation) e.stopPropagation(); if (fn) fn(); };
   if (items) {
     return (
@@ -75,6 +75,7 @@ export function RowMenu({ onView, onEdit, onDuplicate, onDelete, items }) {
     <OverflowMenu size="sm" flipped aria-label="Row actions" onClick={(e) => e.stopPropagation()}>
       {onView && <OverflowMenuItem itemText="View" onClick={stop(onView)} />}
       {onEdit && <OverflowMenuItem itemText="Edit" onClick={stop(onEdit)} />}
+      {onRoles && <OverflowMenuItem itemText="Manage roles" onClick={stop(onRoles)} />}
       {onDuplicate && <OverflowMenuItem itemText="Duplicate" onClick={stop(onDuplicate)} />}
       {onDelete && <OverflowMenuItem itemText="Delete" isDelete onClick={stop(onDelete)} />}
     </OverflowMenu>

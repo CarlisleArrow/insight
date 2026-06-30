@@ -25,6 +25,38 @@ type claimsKeyType struct{}
 
 var claimsKey = claimsKeyType{}
 
+// Authz is the resolved authorization state for a request: the effective coarse
+// permission set (after merging groups + DB role bindings + bootstrap/default
+// fallbacks), the human-readable roles, and the caller's tenant. It is computed
+// once by the middleware when a resolver is configured, then read by
+// RequirePermission and by handlers needing tenant scoping (§2, multi-tenancy).
+type Authz struct {
+	Perms  map[Permission]bool
+	Roles  []string
+	Tenant string
+}
+
+// Has reports whether the resolved set grants perm.
+func (a *Authz) Has(p Permission) bool {
+	return a != nil && a.Perms[p]
+}
+
+type authzKeyType struct{}
+
+var authzKey = authzKeyType{}
+
+// WithAuthz stores the resolved authorization state in the request context.
+func WithAuthz(ctx context.Context, a *Authz) context.Context {
+	return context.WithValue(ctx, authzKey, a)
+}
+
+// AuthzFromContext returns the resolved authorization state, or false when no
+// resolver ran (e.g. tests) — callers then fall back to coarse group checks.
+func AuthzFromContext(ctx context.Context) (*Authz, bool) {
+	a, ok := ctx.Value(authzKey).(*Authz)
+	return a, ok
+}
+
 // WithClaims stores verified claims in the request context.
 func WithClaims(ctx context.Context, c *Claims) context.Context {
 	return context.WithValue(ctx, claimsKey, c)

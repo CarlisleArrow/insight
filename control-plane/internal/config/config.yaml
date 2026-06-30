@@ -21,6 +21,15 @@ dev:
   bypass_groups:
     - data-platform-admin
 
+# DB-backed RBAC fallback (§2). Keycloak carries no groups, so real users get
+# permissions from rbac_role/rbac_binding instead. default_role is the baseline
+# for any authenticated user without a binding; bootstrap_admins (comma list via
+# CP_AUTH_BOOTSTRAP_ADMINS) are always full admins so a fresh prod deploy has at
+# least one administrator. The auth.default_role system_config overrides this.
+auth:
+  default_role: "viewer"
+  bootstrap_admins: []
+
 # Keycloak / OIDC (§2.1). Issuer realm = Unified_SSO, client = insight.
 # client_secret is injected via env CP_KEYCLOAK_CLIENT_SECRET (K8s Secret cp-keycloak).
 keycloak:

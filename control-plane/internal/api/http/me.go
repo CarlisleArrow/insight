@@ -34,8 +34,14 @@ func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 			dept = u.Org
 		}
 	}
+	// Prefer the resolved effective roles + tenant (DB RBAC); fall back to the
+	// raw group claim when no resolver ran.
 	roles := []string{}
-	if claims != nil {
+	tenant := ""
+	if az, ok := auth.AuthzFromContext(r.Context()); ok && az != nil {
+		roles = az.Roles
+		tenant = az.Tenant
+	} else if claims != nil {
 		roles = claims.Groups
 	}
 
@@ -46,10 +52,11 @@ func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 		{"dt": "Identity source", "dd": "Keycloak (Unified_SSO)"},
 		{"dt": "Username", "dd": username},
 		{"dt": "Roles", "dd": strings.Join(roles, ", ")},
+		{"dt": "Tenant", "dd": tenant},
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"name": name, "email": email, "username": username,
-		"roles": roles, "details": details,
+		"roles": roles, "tenant": tenant, "details": details,
 	})
 }
 
@@ -62,7 +69,14 @@ func (h *Handlers) MyPermissions(w http.ResponseWriter, r *http.Request) {
 	claims, _ := auth.FromContext(ctx)
 	groups := claimsGroups(claims)
 
-	resp := map[string]any{"roles": groups, "permissions": []map[string]any{}}
+	// Effective coarse roles (DB RBAC) for display; ABAC data policies below are
+	// still resolved per the caller's groups (acl_subject keys on groups).
+	roles := groups
+	if az, ok := auth.AuthzFromContext(ctx); ok && az != nil && len(az.Roles) > 0 {
+		roles = az.Roles
+	}
+
+	resp := map[string]any{"roles": roles, "permissions": []map[string]any{}}
 	if len(groups) == 0 {
 		writeJSON(w, http.StatusOK, resp)
 		return

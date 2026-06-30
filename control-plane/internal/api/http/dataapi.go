@@ -49,6 +49,11 @@ func (h *Handlers) CreateDataAPIHandler(w http.ResponseWriter, r *http.Request) 
 		writeError(w, http.StatusInternalServerError, "create failed")
 		return
 	}
+	// Stamp the owning tenant (§2). Management is admin-gated and cross-tenant,
+	// so the list stays unfiltered; this records ownership for governance.
+	if t := callerTenant(r.Context()); t != "" {
+		_ = h.Store.SetDataAPITenant(r.Context(), created.APIID, t)
+	}
 	writeJSON(w, http.StatusCreated, created)
 }
 

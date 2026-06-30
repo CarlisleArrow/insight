@@ -15,10 +15,22 @@ import (
 type Config struct {
 	Server   Server   `mapstructure:"server"`
 	Dev      Dev      `mapstructure:"dev"`
+	Auth     Auth     `mapstructure:"auth"`
 	Keycloak Keycloak `mapstructure:"keycloak"`
 	Postgres Postgres `mapstructure:"postgres"`
 	Rewrite  Rewrite  `mapstructure:"rewrite"`
 	Adapters Adapters `mapstructure:"adapters"`
+}
+
+// Auth configures the DB-backed RBAC fallback (§2). Because Keycloak carries no
+// groups, DefaultRole gives every authenticated user a baseline (e.g. "viewer")
+// and BootstrapAdmins names users/emails always granted full admin so a fresh
+// production deployment has at least one administrator without any binding yet.
+// Both are also surfaced as runtime system_config (auth.default_role); config
+// wins when set, otherwise this static default applies.
+type Auth struct {
+	DefaultRole     string   `mapstructure:"default_role"`
+	BootstrapAdmins []string `mapstructure:"bootstrap_admins"`
 }
 
 type Server struct {
@@ -131,6 +143,7 @@ func Load(path string) (*Config, error) {
 	// Bind secret keys explicitly so AutomaticEnv resolves them even though they
 	// are absent from the YAML file.
 	for _, k := range []string{
+		"auth.default_role", "auth.bootstrap_admins",
 		"keycloak.client_secret", "postgres.password",
 		"adapters.clickhouse_password", "adapters.datahub_token", "adapters.sentry_token",
 		"adapters.airflow_auth", "adapters.opensearch_auth",

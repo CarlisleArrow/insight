@@ -24,6 +24,8 @@ type Handlers struct {
 	Metrics       *telemetry.Metrics
 	Store         *pg.Store
 	Resolver      *authz.Resolver
+	RBAC          *authz.RBAC          // effective-permission resolver (§2 DB RBAC)
+	Config        *authz.ConfigService // runtime-effective system config
 	Rewrite       *query.RewriteClient
 	Router        *query.Router
 	Adapters      adapter.Set
