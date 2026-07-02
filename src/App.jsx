@@ -13,6 +13,8 @@ import Modeling from './pages/Modeling.jsx';
 import DevConfig from './pages/DevConfig.jsx';
 import Governance from './pages/Governance.jsx';
 import Monitoring from './pages/Monitoring.jsx';
+import Ai from './pages/Ai.jsx';
+import Federation from './pages/Federation.jsx';
 import Admin from './pages/Admin.jsx';
 import { tr } from './i18n.js';
 
@@ -24,6 +26,8 @@ const SECTIONS = {
   devconfig: DevConfig,
   governance: Governance,
   monitoring: Monitoring,
+  ai: Ai,
+  federation: Federation,
   admin: Admin,
 };
 
@@ -85,7 +89,7 @@ export default function App() {
         </main>
 
         {notifOpen && (
-          <NotificationsPanel lang={lang} notify={notify} onClose={() => setNotifOpen(false)} />
+          <NotificationsPanel lang={lang} notify={notify} onNavigate={selectNav} onClose={() => setNotifOpen(false)} />
         )}
 
         {toasts.length > 0 && (

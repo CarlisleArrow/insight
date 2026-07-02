@@ -203,6 +203,18 @@ export function Placeholder({ label, height = 160, icon = 'chart--bar', style })
 }
 
 /* ---- empty state ---- */
+/* useUnsavedGuard — warn on browser close/refresh while an editor has unsaved
+   changes. `active` is the dirty flag; the native beforeunload prompt fires
+   only when true, so it never nags on clean views. */
+export function useUnsavedGuard(active) {
+  useEffect(() => {
+    if (!active) return undefined;
+    const onBeforeUnload = (e) => { e.preventDefault(); e.returnValue = ''; return ''; };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [active]);
+}
+
 export function EmptyState({ icon = 'document', title, sub, action }) {
   return (
     <div className="w-empty">

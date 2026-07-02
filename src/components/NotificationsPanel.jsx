@@ -9,7 +9,16 @@ import { tr } from '../i18n.js';
 
 const TABS = [['all', 'All'], ['unread', 'Unread'], ['mentions', 'Mentions']];
 
-export default function NotificationsPanel({ lang, notify, onClose }) {
+// Deep-link a notification to the page that owns it. Explicit `n.to` wins;
+// otherwise route by type so clicking a notice jumps to its source.
+const NOTIF_ROUTE = {
+  'pipeline-success': 'devconfig', 'pipeline-fail': 'devconfig', 'pipeline-running': 'devconfig',
+  quality: 'monitoring', sla: 'monitoring', system: 'monitoring',
+  access: 'governance', mention: 'governance',
+};
+const routeFor = (n) => n.to || NOTIF_ROUTE[n.type] || null;
+
+export default function NotificationsPanel({ lang, notify, onNavigate, onClose }) {
   const { items: notifs, update, remove, set } = useCollection('notifications');
   const [tab, setTab] = useState('all');
 
@@ -17,6 +26,11 @@ export default function NotificationsPanel({ lang, notify, onClose }) {
   const list = notifs.filter((n) => (tab === 'all' ? true : tab === 'unread' ? n.unread : n.mention));
 
   const markRead = (id) => update(id, { unread: false });
+  const openSource = (n) => {
+    markRead(n.id);
+    const to = routeFor(n);
+    if (to && onNavigate) { onNavigate(to); onClose && onClose(); }
+  };
   const markAll = () => {
     set(notifs.map((n) => ({ ...n, unread: false })));
     api.markAllNotificationsRead().catch((err) => console.error('mark all read failed', err));
@@ -61,12 +75,12 @@ export default function NotificationsPanel({ lang, notify, onClose }) {
           ) : list.map((n) => {
             const m = NOTIF_META[n.type] || NOTIF_META.system;
             return (
-              <div key={n.id} className={`w-notif ${n.unread ? 'unread' : ''}`} onClick={() => markRead(n.id)}>
+              <div key={n.id} className={`w-notif ${n.unread ? 'unread' : ''} ${routeFor(n) ? 'is-link' : ''}`} onClick={() => openSource(n)}>
                 <span className="w-notif__ic" style={{ color: m.color }}><Icon name={m.icon} size={20} /></span>
                 <div className="w-notif__bd">
                   <div className="t">{tr(lang, n.title)}</div>
                   <div className="d">{n.desc}</div>
-                  <div className="ts">{n.ts}</div>
+                  <div className="ts">{n.ts}{routeFor(n) && <span className="w-notif__go"><Icon name="arrow--right" size={12} />{tr(lang, 'View source')}</span>}</div>
                   {n.request && (
                     <div className="w-notif__req">
                       <Button kind="primary" size="sm" onClick={(e) => { e.stopPropagation(); act(n, 'approve'); }}>{tr(lang, 'Approve')}</Button>

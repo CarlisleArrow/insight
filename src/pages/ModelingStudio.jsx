@@ -5,7 +5,7 @@ import {
   ComposedModal, ModalHeader, ModalBody, ModalFooter,
 } from '@carbon/react';
 import Icon, { iconFor } from '../components/Icon.jsx';
-import { CarbonTable, StatusDot, RowMenu, ToolBtn, Placeholder } from '../components/shared.jsx';
+import { CarbonTable, StatusDot, RowMenu, ToolBtn, Placeholder, useUnsavedGuard } from '../components/shared.jsx';
 import { ConfirmDelete } from '../components/modals.jsx';
 import { startPointerDrag, snap } from '../components/dnd.js';
 import * as api from '../data/api.js';
@@ -38,9 +38,10 @@ function starLayout(tables) {
 function StarCanvas({ tables, rels, pos, zoom, sel, onSelect, onMove }) {
   const byName = Object.fromEntries(tables.map((t) => [t.name, t]));
   const byFull = Object.fromEntries(tables.map((t) => [`${t.target_ns}.${t.name}`, t.uid]));
-  // Fact↔dim join edges (solid).
+  // Fact↔dim join edges (solid, crow's-foot). Carry the FK/PK so the active
+  // edge can label its join keys.
   const joinEdges = rels
-    .map((r) => ({ a: byName[r.fact]?.uid, b: byName[r.dim]?.uid }))
+    .map((r) => ({ a: byName[r.fact]?.uid, b: byName[r.dim]?.uid, fk: r.fact_fk, pk: r.dim_pk }))
     .filter((e) => pos[e.a] && pos[e.b]);
   // Source-derivation edges (dashed): a table reads from another table in the model
   // (e.g. an aggregate reading from its silver fact). Drawn so aggregates connect.
@@ -62,6 +63,20 @@ function StarCanvas({ tables, rels, pos, zoom, sel, onSelect, onMove }) {
     <div className="ms-canvas">
       <div style={{ position: 'absolute', inset: 0, transform: `scale(${zoom})`, transformOrigin: 'top left', width: `${100 / zoom}%`, height: `${100 / zoom}%` }}>
         <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}>
+          {/* Crow's-foot markers: "many" splay on the fact (FK) end, "one" bar on the
+              dim (PK) end. Two colour sets so the selected table's edges read blue. */}
+          <defs>
+            {[['', 'var(--cds-border-strong-01)'], ['-a', 'var(--cds-blue-60)']].map(([sfx, col]) => (
+              <g key={sfx || 'd'}>
+                <marker id={`ms-cf-many${sfx}`} markerWidth="13" markerHeight="13" refX="11" refY="6" orient="auto-start-reverse" markerUnits="userSpaceOnUse">
+                  <path d="M11,6 L1,0 M11,6 L1,6 M11,6 L1,12" fill="none" stroke={col} strokeWidth="1.3" />
+                </marker>
+                <marker id={`ms-cf-one${sfx}`} markerWidth="10" markerHeight="14" refX="5" refY="7" orient="auto" markerUnits="userSpaceOnUse">
+                  <path d="M5,1 L5,13" stroke={col} strokeWidth="1.3" />
+                </marker>
+              </g>
+            ))}
+          </defs>
           {srcEdges.map((e, i) => {
             const a = pos[e.a]; const b = pos[e.b];
             return <line key={`s${i}`} x1={a.x + NODE_W / 2} y1={a.y + 20} x2={b.x + NODE_W / 2} y2={b.y + 20}
@@ -70,8 +85,28 @@ function StarCanvas({ tables, rels, pos, zoom, sel, onSelect, onMove }) {
           {joinEdges.map((e, i) => {
             const a = pos[e.a]; const b = pos[e.b];
             const active = sel === e.a || sel === e.b;
-            return <line key={`j${i}`} x1={a.x + NODE_W / 2} y1={a.y + 20} x2={b.x + NODE_W / 2} y2={b.y + 20}
-              stroke={active ? 'var(--cds-blue-60)' : 'var(--cds-border-strong-01)'} strokeWidth={active ? 2 : 1.5} />;
+            const HDR = 16; // anchor on the node header's vertical centre
+            const aRight = (b.x + NODE_W / 2) >= (a.x + NODE_W / 2);
+            const ax1 = aRight ? a.x + NODE_W : a.x;
+            const bx1 = aRight ? b.x : b.x + NODE_W;
+            const ay1 = a.y + HDR; const by1 = b.y + HDR;
+            const k = 46; const dirA = aRight ? 1 : -1; const dirB = aRight ? -1 : 1;
+            const d = `M ${ax1} ${ay1} C ${ax1 + dirA * k} ${ay1}, ${bx1 + dirB * k} ${by1}, ${bx1} ${by1}`;
+            const col = active ? 'var(--cds-blue-60)' : 'var(--cds-border-strong-01)';
+            const sfx = active ? '-a' : '';
+            const midx = (ax1 + bx1) / 2; const midy = (ay1 + by1) / 2;
+            return (
+              <g key={`j${i}`}>
+                <path d={d} fill="none" stroke={col} strokeWidth={active ? 2 : 1.5}
+                  markerStart={`url(#ms-cf-many${sfx})`} markerEnd={`url(#ms-cf-one${sfx})`} />
+                {active && (e.fk || e.pk) && (
+                  <text x={midx} y={midy - 4} textAnchor="middle" fontSize="9" fontFamily="var(--cds-font-mono)"
+                    paintOrder="stroke" stroke="var(--cds-background)" strokeWidth="3" fill="var(--cds-text-secondary)">
+                    {(e.fk || 'fk')} → {(e.pk || 'pk')}
+                  </text>
+                )}
+              </g>
+            );
           })}
         </svg>
         {tables.map((t) => pos[t.uid] && (
@@ -316,6 +351,8 @@ function ModelingCanvas({ modelRow, onBack, notify, lang }) {
   const [codeGen, setCodeGen] = useState(false);
   const [pos, setPos] = useState({});   // { uid: {x,y} } canvas positions
   const [zoom, setZoom] = useState(1);
+  // Unsaved-draft guard: an un-persisted model with tables on the canvas is dirty.
+  useUnsavedGuard(!id && tables.length > 0);
   const [full, setFull] = useState(false);
 
   // Esc exits fullscreen.

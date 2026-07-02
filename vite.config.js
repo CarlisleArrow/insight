@@ -19,6 +19,12 @@ export default defineConfig({
         target: process.env.VITE_API_TARGET || 'http://localhost:8088',
         changeOrigin: true,
       },
+      // Public read-only Data API endpoints (dataapi_external.go). The in-product
+      // "Try it" debugger calls these directly to prove "safe even without auth".
+      '/data-api': {
+        target: process.env.VITE_API_TARGET || 'http://localhost:8088',
+        changeOrigin: true,
+      },
     },
   },
 });

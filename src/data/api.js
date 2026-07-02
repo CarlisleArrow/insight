@@ -154,6 +154,36 @@ export const deprecateDataApi = (id) => req(`/data-apis/${encodeURIComponent(id)
 export const listDataApiKeys = (id) => req(`/data-apis/${encodeURIComponent(id)}/keys`);
 export const createDataApiKey = (id, body) => req(`/data-apis/${encodeURIComponent(id)}/keys`, { method: 'POST', body: JSON.stringify(body) });
 export const deleteDataApiKey = (id, keyId) => req(`/data-apis/${encodeURIComponent(id)}/keys/${encodeURIComponent(keyId)}`, { method: 'DELETE' });
+// Usage / audit / versions — thin wrappers; endpoints // 待确认 (degrade gracefully if 404).
+export const dataApiUsage = (id) => req(`/data-apis/${encodeURIComponent(id)}/usage`);
+export const dataApiAudit = (id) => req(`/data-apis/${encodeURIComponent(id)}/audit`);
+export const dataApiVersions = (id) => req(`/data-apis/${encodeURIComponent(id)}/versions`);
+
+/* callDataApi — hits the PUBLIC read-only Data API endpoint directly (not the BFF
+   /api prefix): GET /data-api/v1/<name>?<params>. Used by the in-product "Try it"
+   debugger to prove that even an anonymous call only ever returns whitelisted,
+   masked fields. Returns the status code, latency, resolved URL, and parsed body. */
+export async function callDataApi(name, params = {}, apiKey) {
+  const qs = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v !== '' && v != null) qs.append(k, v); });
+  const url = `/data-api/v1/${encodeURIComponent(name)}${qs.toString() ? `?${qs}` : ''}`;
+  const headers = {};
+  if (apiKey) headers['x-api-key'] = apiKey;
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let res;
+  let bodyText = '';
+  try {
+    res = await fetch(url, { headers });
+    bodyText = await res.text();
+  } catch (err) {
+    const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+    return { ok: false, status: 0, ms, url, error: String(err.message || err) };
+  }
+  const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - t0);
+  let body;
+  try { body = JSON.parse(bodyText); } catch { body = bodyText; }
+  return { ok: res.ok, status: res.status, ms, url, body };
+}
 
 /* ---------- Modeling-as-Code (§16) ---------- */
 export const models = resource('/models');
@@ -172,6 +202,8 @@ export const getWatermarks = (ns, table) => req(`/tables/${encodeURIComponent(ns
 export const resetWatermark = (ns, table, body) => req(`/tables/${encodeURIComponent(ns)}/${encodeURIComponent(table)}/watermarks/reset`, { method: 'POST', body: JSON.stringify(body) });
 export const patchPreview = (ns, table, body) => req(`/tables/${encodeURIComponent(ns)}/${encodeURIComponent(table)}/patch/preview`, { method: 'POST', body: JSON.stringify(body) });
 export const patchApply = (ns, table, body) => req(`/tables/${encodeURIComponent(ns)}/${encodeURIComponent(table)}/patch/apply`, { method: 'POST', body: JSON.stringify(body) });
+// Roll a table back to the pre-patch Iceberg snapshot retained at apply time.
+export const patchRollback = (ns, table, body) => req(`/tables/${encodeURIComponent(ns)}/${encodeURIComponent(table)}/patch/rollback`, { method: 'POST', body: JSON.stringify(body) });
 
 /* ---------- Approval queue (shared by §15 publish / §17 schema & patch) ---------- */
 export const getApprovals = (status) => req(`/approvals${status ? `?status=${encodeURIComponent(status)}` : ''}`);

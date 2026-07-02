@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Button, Tag, TextInput, InlineNotification, Tile, Select, SelectItem,
+  ComposedModal, ModalHeader, ModalBody, ModalFooter,
 } from '@carbon/react';
 import Icon, { iconFor } from '../components/Icon.jsx';
 import { PageHeader, CarbonTable, StatusDot, EmptyState } from '../components/shared.jsx';
@@ -119,10 +120,92 @@ function NewPatch({ tables, onCancel, onDone, notify, lang }) {
   );
 }
 
+/* ---- patch detail drill-down: full operation + retained pre-patch snapshot,
+   with a guarded rollback to that snapshot (§17.3 snapshot-backed). ---- */
+function PatchDetail({ patch, onBack, onDone, notify, lang }) {
+  const diff = parse(patch.diff, {});
+  const impact = parse(patch.impact, {});
+  const op = diff.op || '';
+  const sets = diff.set || {};
+  const snapshot = impact.snapshot_id || impact.pre_snapshot || patch.snapshot_id;
+  const [confirm, setConfirm] = useState(null); // null | open
+  const [txt, setTxt] = useState('');
+
+  const rollback = async () => {
+    const [ns, t] = String(patch.target).split('.');
+    try {
+      await api.patchRollback(ns, t, { snapshot_id: snapshot, approval_id: patch.id });
+      notify && notify({ kind: 'success', title: tr(lang, 'Rolled back'), subtitle: `${patch.target} → ${snapshot || tr(lang, 'pre-patch snapshot')}` });
+      setConfirm(null); onDone();
+    } catch (err) { notify && notify({ kind: 'error', title: tr(lang, 'Rollback failed.'), subtitle: (err.detail || String(err.message || err)) }); }
+  };
+
+  return (
+    <div>
+      <Button kind="ghost" size="sm" onClick={onBack} style={{ marginBottom: 12, justifyContent: 'flex-start', paddingInlineStart: 12 }}><Icon name="arrow--left" size={16} style={{ marginRight: 8 }} />{tr(lang, 'Back')}</Button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+        <h1 className="ip-mono" style={{ fontSize: '1.5rem', fontWeight: 400, margin: 0 }}>{patch.target}</h1>
+        <Tag type={op === 'delete' ? 'red' : 'purple'} size="md">{String(op).toUpperCase()}</Tag>
+        <StatusDot kind={STATUS_KIND[patch.status] || 'gray'}>{tr(lang, patch.status)}</StatusDot>
+        {patch.status === 'executed' && snapshot && (
+          <div style={{ marginLeft: 'auto' }}>
+            <Button kind="danger" size="md" renderIcon={iconFor('restart')} onClick={() => { setConfirm(true); setTxt(''); }}>{tr(lang, 'Roll back')}</Button>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, alignItems: 'start' }}>
+        <div>
+          <div className="w-section-label" style={{ margin: '0 0 8px' }}>{tr(lang, 'Operation')}</div>
+          <dl className="w-dl">
+            <dt>{tr(lang, 'Operation')}</dt><dd><Tag type={op === 'delete' ? 'red' : 'purple'} size="sm">{String(op).toUpperCase()}</Tag></dd>
+            <dt>{tr(lang, 'WHERE condition (required)')}</dt><dd className="ip-mono">{diff.where || '—'}</dd>
+            {op === 'update' && <><dt>{tr(lang, 'SET values')}</dt><dd className="ip-mono">{Object.keys(sets).length ? Object.entries(sets).map(([k, v]) => `${k} = ${v}`).join('; ') : '—'}</dd></>}
+            <dt>{tr(lang, 'Reason')}</dt><dd>{patch.reason || '—'}</dd>
+            <dt>{tr(lang, 'By')}</dt><dd>{patch.requester || '—'}</dd>
+            <dt>{tr(lang, 'Rows')}</dt><dd>{impact.affected_rows ?? '—'}</dd>
+          </dl>
+        </div>
+        <div>
+          <div className="w-section-label" style={{ margin: '0 0 8px' }}>{tr(lang, 'Pre-patch snapshot')}</div>
+          {snapshot ? (
+            <Tile>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Icon name="time" size={16} /><span className="ip-mono" style={{ fontSize: '.8125rem' }}>{snapshot}</span>
+              </div>
+              <p style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', margin: '10px 0 0', lineHeight: 1.5 }}>
+                {tr(lang, 'The lakehouse state from just before this patch is retained. Roll back to restore it exactly.')}
+              </p>
+            </Tile>
+          ) : (
+            <InlineNotification kind="info" lowContrast hideCloseButton title={tr(lang, 'Snapshot retained on execute')}
+              subtitle={tr(lang, 'A pre-patch snapshot is captured when the patch executes; it appears here once approved and applied.')} />
+          )}
+        </div>
+      </div>
+
+      {confirm && (
+        <ComposedModal open size="sm" onClose={() => setConfirm(null)}>
+          <ModalHeader label={tr(lang, 'High-risk operation')} title={tr(lang, 'Roll back')} />
+          <ModalBody hasForm>
+            <InlineNotification kind="error" lowContrast hideCloseButton title={tr(lang, 'This restores the pre-patch snapshot')}
+              subtitle={tr(lang, 'Any changes made after this patch will be lost. This action is itself audited.')} />
+            <TextInput id="rb-confirm" labelText={`${tr(lang, 'Type the table name to confirm')}: ${patch.target}`} value={txt} onChange={(e) => setTxt(e.target.value)} placeholder={patch.target} />
+          </ModalBody>
+          <ModalFooter>
+            <Button kind="secondary" onClick={() => setConfirm(null)}>{tr(lang, 'Cancel')}</Button>
+            <Button kind="danger" renderIcon={iconFor('restart')} disabled={txt !== patch.target} onClick={rollback}>{tr(lang, 'Roll back')}</Button>
+          </ModalFooter>
+        </ComposedModal>
+      )}
+    </div>
+  );
+}
+
 /* Body — gate → list/new flow, no page chrome. Embedded under Monitoring & Ops. */
 export function DataPatchBody({ notify, lang }) {
   const [unlocked, setUnlocked] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [detail, setDetail] = useState(null);
   const [rows, setRows] = useState([]);
   const [tables, setTables] = useState([]);
 
@@ -137,6 +220,7 @@ export function DataPatchBody({ notify, lang }) {
 
   if (!unlocked) return <Gate onProceed={() => setUnlocked(true)} lang={lang} />;
   if (creating) return <NewPatch tables={tables} onCancel={() => setCreating(false)} onDone={() => { setCreating(false); load(); }} notify={notify} lang={lang} />;
+  if (detail) return <PatchDetail patch={detail} onBack={() => setDetail(null)} onDone={() => { setDetail(null); load(); }} notify={notify} lang={lang} />;
   return (
     <div>
       <InlineNotification kind="warning" lowContrast hideCloseButton title={tr(lang, 'Corrections only')}
@@ -155,8 +239,10 @@ export function DataPatchBody({ notify, lang }) {
           rows={rows.map((r) => ({ ...r, op: parse(r.diff, {}).op, rows: parse(r.impact, {}).affected_rows }))}
           withPagination
           searchPlaceholder={tr(lang, 'Search patch history')}
+          onRowClick={setDetail}
           actions={<Button kind="danger" size="lg" renderIcon={iconFor('add')} onClick={() => setCreating(true)}>{tr(lang, 'New patch')}</Button>}
           renderCell={(r, k) => {
+            if (k === 'target') return <a href="#" onClick={(e) => { e.preventDefault(); setDetail(r); }}>{r.target}</a>;
             if (k === 'op') return <Tag type={r.op === 'delete' ? 'red' : 'purple'} size="sm">{String(r.op || '').toUpperCase()}</Tag>;
             if (k === 'reason') return <span style={{ display: 'block', maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.reason}</span>;
             if (k === 'status') return <StatusDot kind={STATUS_KIND[r.status] || 'gray'}>{tr(lang, r.status)}</StatusDot>;

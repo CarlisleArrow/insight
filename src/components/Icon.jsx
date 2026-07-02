@@ -3,7 +3,7 @@
    <Icon name="data--base" size={16} />. */
 import {
   Dashboard, DataBase, Code, Folder, ChartLine, Settings, Notification, Help,
-  ChevronLeft, ChevronRight, ChevronDown, ChevronSort, Search as SearchIcon,
+  ChevronLeft, ChevronRight, ChevronDown, ChevronUp, ChevronSort, Search as SearchIcon,
   ArrowRight, ArrowLeft, UserAvatar, Time, Add, Grid, List, Filter, Save,
   Restart, Renew, View, ViewOff, Share, Send, Play, Pause, Close, Checkmark,
   OverflowMenuVertical, Document, Export, Download, ZoomIn, ZoomOut, Maximize,
@@ -13,7 +13,7 @@ import {
   Mobile, Laptop, Security, SettingsAdjust, Keyboard, Enterprise, Screen,
   Translate, Api, StarFilled, Star, Copy, InformationFilled, ArrowUp, Idea,
   Apps, Warning, Subtract, TrashCan, Unlocked, PlayOutline, StopOutline,
-  ErrorOutline, Calendar, Minimize,
+  ErrorOutline, Calendar, Minimize, Map,
 } from '@carbon/icons-react';
 
 const REGISTRY = {
@@ -23,12 +23,14 @@ const REGISTRY = {
   folder: Folder,
   'chart--line': ChartLine,
   'chart--bar': ChartBar,
+  map: Map,
   settings: Settings,
   notification: Notification,
   help: Help,
   'chevron--left': ChevronLeft,
   'chevron--right': ChevronRight,
   'chevron--down': ChevronDown,
+  'chevron--up': ChevronUp,
   'chevron--sort': ChevronSort,
   search: SearchIcon,
   'arrow--right': ArrowRight,

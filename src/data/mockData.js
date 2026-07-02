@@ -16,6 +16,8 @@ export const IPAS_NAV = [
   { id: 'devconfig', label: 'Data Development / Config', icon: 'code' },
   { id: 'governance', label: 'Data Assets & Governance', icon: 'folder' },
   { id: 'monitoring', label: 'Monitoring & Ops', icon: 'chart--line' },
+  { id: 'ai', label: 'AI', icon: 'watson' },
+  { id: 'federation', label: 'Federation', icon: 'share' },
   { id: 'admin', label: 'Platform Admin', icon: 'settings' },
 ];
 
@@ -457,3 +459,152 @@ export const LAYER_TAG = { RAW: 'cool-gray', Bronze: 'cool-gray', Silver: 'cyan'
 export const SENS_TAG = { PII: 'red', Confidential: 'purple', Internal: 'blue', Public: 'green' };
 export const DAG_STATUS_COLOR = { success: 'var(--cds-support-success)', running: 'var(--cds-blue-60)', queued: 'var(--cds-text-placeholder)', failed: 'var(--cds-support-error)' };
 export const RAG_COLOR = { g: 'var(--cds-support-success)', a: 'var(--cds-support-warning)', r: 'var(--cds-support-error)' };
+
+/* ============================================================
+   AI capabilities (§ Models · Semantic · Agent Studio · Insights)
+   ============================================================ */
+
+/* ---- AI Models ---- */
+export const AI_PROVIDERS = {
+  Anthropic: { c: '#d97757', ab: 'A' },
+  OpenAI: { c: '#10a37f', ab: 'O' },
+  Ollama: { c: '#161616', ab: 'Ω' },
+  vLLM: { c: '#5a3ec8', ab: 'V' },
+  Azure: { c: '#0078d4', ab: 'Az' },
+};
+export const AI_CAP_TAG = { chat: 'blue', embedding: 'teal', vision: 'purple', 'function-call': 'cool-gray' };
+export const AI_MODELS = [
+  { id: 1, name: 'claude-prod', provider: 'Anthropic', endpoint: 'api.anthropic.com', ref: 'claude-opus-4-8', deploy: 'external', caps: ['chat', 'vision', 'function-call'], status: 'Active', default: true, tested: '3 min ago', tok: '128k', usage: { calls: '14.2k', tokens: '8.9M', flows: ['Daily SPC analysis', 'Cpk alert + remediation'] } },
+  { id: 2, name: 'local-qwen', provider: 'vLLM', endpoint: 'vllm.insight.svc:8000', ref: 'Qwen2.5-72B-Instruct', deploy: 'local', caps: ['chat', 'function-call'], status: 'Active', default: false, tested: '12 min ago', tok: '32k', usage: { calls: '6.1k', tokens: '3.2M', flows: ['Cross-plant yield report'] } },
+  { id: 3, name: 'local-embed', provider: 'Ollama', endpoint: 'ollama.insight.svc:11434', ref: 'bge-m3', deploy: 'local', caps: ['embedding'], status: 'Active', default: false, tested: '1 hour ago', tok: '8k', usage: { calls: '212k', tokens: '54M', flows: ['Semantic vectorization'] } },
+  { id: 4, name: 'gpt-vision-ext', provider: 'OpenAI', endpoint: 'api.openai.com', ref: 'gpt-4o', deploy: 'external', caps: ['chat', 'vision'], status: 'Active', default: false, tested: '2 hours ago', tok: '128k', usage: { calls: '3.4k', tokens: '1.1M', flows: [] } },
+  { id: 5, name: 'azure-fallback', provider: 'Azure', endpoint: 'insight.openai.azure.com', ref: 'gpt-4o-mini', deploy: 'external', caps: ['chat'], status: 'Inactive', default: false, tested: '3 days ago', tok: '64k', usage: { calls: '0', tokens: '0', flows: [] } },
+  { id: 6, name: 'qwen-vision-local', provider: 'vLLM', endpoint: 'vllm-v.insight.svc:8000', ref: 'Qwen2.5-VL-7B', deploy: 'local', caps: ['chat', 'vision'], status: 'Active', default: false, tested: '38 min ago', tok: '16k', usage: { calls: '980', tokens: '420k', flows: [] } },
+];
+export const AI_SENS_LEVELS = [
+  { lvl: 'Public', tag: 'green' }, { lvl: 'Internal', tag: 'blue' }, { lvl: 'Confidential', tag: 'purple' }, { lvl: 'Restricted', tag: 'red' },
+];
+
+/* ---- AI Semantic layer ---- */
+export const SEM_LAYERS = [
+  { layer: 'gold', entities: [
+    { id: 'g1', name: 'gold.spc_capability_daily', type: 'table', cb: 'vec' },
+    { id: 'g2', name: 'cpk', type: 'metric', cb: 'vec' },
+    { id: 'g3', name: 'r3_flag', type: 'field', cb: 'desc' },
+    { id: 'g4', name: 'gold.agg_yield_daily', type: 'table', cb: 'pend' },
+  ] },
+  { layer: 'silver', entities: [
+    { id: 's1', name: 'silver.spc_measurements', type: 'table', cb: 'desc' },
+    { id: 's2', name: 'process_id', type: 'field', cb: 'vec' },
+    { id: 's3', name: 'xbar', type: 'field', cb: 'pend' },
+  ] },
+  { layer: 'bronze', entities: [
+    { id: 'b1', name: 'bronze.qc_results', type: 'table', cb: 'pend' },
+    { id: 'b2', name: 'bronze.process_master', type: 'table', cb: 'pend' },
+  ] },
+];
+export const SEM_CB_LABEL = { vec: 'Vectorized', desc: 'Described', pend: 'Pending' };
+export const SEM_DETAIL = {
+  g1: {
+    nl: 'Daily process-capability summary. One row per process per plant per calendar day, reporting Cp and Cpk computed from that day’s in-control SPC measurements.',
+    caliber: 'Cpk is computed only from points that pass Western Electric / Nelson rule checks. Out-of-control points are excluded from the daily index.',
+    domain: 'gold aggregates must be written in ascending date order. Cpk < 1.33 is marginal; Cpk < 1.0 triggers an alert. r3_flag marks 7 consecutive points on one side of the mean.',
+    samples: 'process_id="P1", plant="A", cal_date="2026-06-21", cpk=1.41, cp=1.58',
+    rels: 'Aggregated from silver.spc_measurements. Joined to dim_process on process_id, dim_plant on plant.',
+    constraints: 'cpk ≥ 0; cal_date NOT NULL; (process_id, plant, cal_date) is unique.',
+    sens: 'Internal',
+  },
+};
+export const SEM_DEFAULT_DETAIL = { nl: '', caliber: '', domain: '', samples: '', rels: '', constraints: '', sens: 'Internal' };
+
+/* ---- Agent Studio ---- */
+export const AG_NODE_TYPES = {
+  trigger: { c: '#525252', icon: 'time', label: 'Trigger', grp: 'Triggers' },
+  query: { c: '#0f62fe', icon: 'data--base', label: 'Data query', grp: 'Data & AI' },
+  retrieve: { c: '#007d79', icon: 'search', label: 'Semantic search', grp: 'Data & AI' },
+  ai: { c: '#8a3ffc', icon: 'watson', label: 'AI inference', grp: 'Data & AI' },
+  tool: { c: '#b28600', icon: 'settings', label: 'Tool call', grp: 'Logic & tools' },
+  cond: { c: '#ff832b', icon: 'interactions', label: 'Condition', grp: 'Logic & tools' },
+  loop: { c: '#ff832b', icon: 'renew', label: 'Loop', grp: 'Logic & tools' },
+  hitl: { c: '#da1e28', icon: 'user', label: 'Human approval', grp: 'Logic & tools' },
+  output: { c: '#24a148', icon: 'send', label: 'Output', grp: 'Output' },
+};
+export const AG_PALETTE_GROUPS = ['Triggers', 'Data & AI', 'Logic & tools', 'Output'];
+export const AG_FLOWS = [
+  { id: 1, name: 'Daily SPC capability analysis', desc: 'Summarize Cpk by process and flag declines', trigger: 'scheduled', status: 'Published', lastRun: 'success', owner: 'L. Marsh' },
+  { id: 2, name: 'Cpk alert + remediation', desc: 'On Cpk breach, draft a remediation plan for review', trigger: 'event', status: 'Published', lastRun: 'running', owner: 'R. Vance' },
+  { id: 3, name: 'Cross-plant yield report', desc: 'Weekly yield comparison across plants A/B/C', trigger: 'scheduled', status: 'Published', lastRun: 'success', owner: 'M. Díaz' },
+  { id: 4, name: 'Defect root-cause triage', desc: 'Cluster recent defects and propose causes', trigger: 'manual', status: 'Draft', lastRun: '—', owner: 'A. Okafor' },
+];
+export const AG_TRIGGER_TAG = { manual: { t: 'cool-gray', l: 'Manual' }, scheduled: { t: 'blue', l: 'Scheduled' }, event: { t: 'purple', l: 'Event' } };
+export const AG_NODES = [
+  { id: 'n1', type: 'trigger', x: 40, y: 60, name: 'On Cpk breach', sub: 'event · cpk < 1.0' },
+  { id: 'n2', type: 'query', x: 300, y: 60, name: 'Query capability', sub: 'gold.spc_capability_daily', masked: true },
+  { id: 'n3', type: 'retrieve', x: 300, y: 250, name: 'Retrieve context', sub: 'RAG · top-k 5' },
+  { id: 'n4', type: 'ai', x: 560, y: 150, name: 'Draft remediation', sub: 'claude-prod' },
+  { id: 'n5', type: 'cond', x: 820, y: 150, name: 'Severity gate', sub: 'cpk < 0.8 ?' },
+  { id: 'n6', type: 'hitl', x: 820, y: 380, name: 'Engineer approval', sub: 'role: Process Eng' },
+  { id: 'n7', type: 'output', x: 980, y: 60, name: 'Notify + report', sub: 'channel + PDF' },
+];
+export const AG_EDGES = [
+  { a: 'n1', b: 'n2' }, { a: 'n2', b: 'n4' }, { a: 'n3', b: 'n4' },
+  { a: 'n4', b: 'n5' }, { a: 'n5', b: 'n7', label: 'No' }, { a: 'n5', b: 'n6', label: 'Yes' }, { a: 'n6', b: 'n7' },
+];
+export const AG_TEMPLATES = [
+  { name: 'Daily process-capability analysis', desc: 'Scheduled summary of Cpk by process with decline flags.', nodes: 6 },
+  { name: 'Cpk alert + remediation', desc: 'Event-driven remediation draft with human approval.', nodes: 7 },
+  { name: 'Cross-plant yield comparison report', desc: 'Weekly yield benchmark across plants A/B/C.', nodes: 5 },
+];
+export const AG_TRACE_STEPS = [
+  { id: 'n1', dur: '2 ms', status: 'ok', io: { in: 'monitor event', out: 'process_id=P1, plant=A, cpk=0.74' } },
+  { id: 'n2', dur: '128 ms', status: 'ok', masked: true, evidence: [['process_id', 'plant', 'cal_date', 'cpk', 'cp'], ['P1', 'A', '2026-06-21', '0.74', '0.81'], ['P1', 'A', '2026-06-20', '0.79', '0.86'], ['P1', 'A', '2026-06-19', '0.83', '0.90']] },
+  { id: 'n3', dur: '64 ms', status: 'ok', io: { in: 'query: P1 capability decline', out: '5 chunks · cpk definition, r3_flag rule, gold ordering rule' } },
+  { id: 'n4', dur: '2.1 s', status: 'ok', model: 'claude-prod', prompt: 'Process P1 on plant A has Cpk 0.74. Using context [cpk def; r3_flag rule]. Draft a remediation plan with 3 prioritized actions.', reply: '1. Halt P1 and re-center the process mean — Cpk 0.74 is below the 1.0 action limit.\n2. Audit the last calibration of gauge G-114; 3 consecutive points trend low (r3 pattern forming).\n3. Re-sample after adjustment and confirm Cpk ≥ 1.33 before resuming.' },
+  { id: 'n5', dur: '1 ms', status: 'ok', io: { in: 'n2.cpk = 0.74', out: 'cpk < 0.8 → Yes branch' } },
+  { id: 'n6', dur: 'waiting', status: 'wait' },
+  { id: 'n7', dur: '—', status: 'pending' },
+];
+
+/* ---- AI Insights ---- */
+export const AI_SEV_COLOR = { high: 'var(--cds-support-error)', medium: 'var(--cds-support-warning)', low: 'var(--cds-text-placeholder)' };
+export const AI_SEV_TAG = { high: 'red', medium: 'purple', low: 'cool-gray' };
+export const AI_INSIGHTS = [
+  { id: 1, title: 'P1 capability fell below the action limit on plant A', sev: 'high', when: '14 min ago', source: 'Cpk alert + remediation', process: 'P1',
+    summary: 'Cpk on process P1 (plant A) dropped to 0.74 today — below the 1.0 action limit and the third consecutive daily decline. An r3 pattern (7 points trending one side) is forming.',
+    evidence: [['cal_date', 'process_id', 'plant', 'cpk', 'cp'], ['2026-06-21', 'P1', 'A', '0.74', '0.81'], ['2026-06-20', 'P1', 'A', '0.79', '0.86'], ['2026-06-19', 'P1', 'A', '0.83', '0.90']],
+    rec: ['Halt P1 and re-center the process mean.', 'Audit the last calibration of gauge G-114.', 'Re-sample and confirm Cpk ≥ 1.33 before resuming.'] },
+  { id: 2, title: 'Plant B yield trails the group by 2.1 points this week', sev: 'medium', when: '2 hours ago', source: 'Cross-plant yield report', process: 'All',
+    summary: 'Weekly yield on plant B is 94.3% vs a group average of 96.4%. The gap concentrates in the final test step, where B’s scrap rate is 1.8× plant A.',
+    evidence: [['plant', 'yield_pct', 'scrap_final'], ['A', '96.8', '0.9%'], ['B', '94.3', '1.6%'], ['C', '96.1', '1.0%']],
+    rec: ['Review final-test fixture wear on plant B.', 'Compare B’s test limits against the A/C baseline.'] },
+  { id: 3, title: 'Defect cluster D-204 recurring across three shifts', sev: 'low', when: 'Yesterday', source: 'Defect root-cause triage', process: 'P2',
+    summary: 'A solder-bridge defect signature (D-204) appears across all three shifts on P2, suggesting an equipment rather than operator cause.',
+    evidence: [['shift', 'defect_code', 'count'], ['A', 'D-204', '12'], ['B', 'D-204', '9'], ['C', 'D-204', '11']],
+    rec: ['Inspect the reflow oven profile on P2.', 'Pull maintenance log for the last 7 days.'] },
+];
+export const AI_QA_SUGGEST = ['Which process had the worst Cpk last week?', 'Compare yield across plants this month', 'Why did P1 capability drop?'];
+
+/* ============================================================
+   Federation (Control Tower · Lakehouses)
+   ============================================================ */
+export const FED_PLANTS = [
+  { id: 'plant-a', name: 'Plant A', region: 'Shanghai, CN', state: 'online', version: 'v2.4.1', blueprint: 'bp-2026.06', pipes: '18 / 18', fresh: '2 min', sync: '120 ms', report: '14s ago', cpk: 1.41, yield: 96.8 },
+  { id: 'plant-b', name: 'Plant B', region: 'Penang, MY', state: 'alert', version: 'v2.4.1', blueprint: 'bp-2026.06', pipes: '15 / 17', fresh: '11 min', sync: '480 ms', report: '38s ago', cpk: 1.12, yield: 94.3 },
+  { id: 'plant-c', name: 'Plant C', region: 'Dresden, DE', state: 'online', version: 'v2.3.9', blueprint: 'bp-2026.05', pipes: '12 / 12', fresh: '4 min', sync: '210 ms', report: '9s ago', cpk: 1.33, yield: 96.1 },
+  { id: 'plant-d', name: 'Plant D', region: 'Austin, US', state: 'offline', version: 'v2.4.1', blueprint: 'bp-2026.06', pipes: '— / 14', fresh: '—', sync: '—', report: '12 min ago', cpk: null, yield: null },
+];
+export const FED_STATE_LABEL = { online: 'Online', alert: 'Alert', offline: 'Offline' };
+export const FED_STATE_KIND = { online: 'success', alert: 'warning', offline: 'error' };
+export const FED_CMD_TYPES = [
+  { id: 'pipeline', nm: 'Trigger pipeline', dc: 'Run a named pipeline at the plant.' },
+  { id: 'config', nm: 'Push config', dc: 'Send a configuration change to apply.' },
+  { id: 'blueprint', nm: 'Push blueprint version', dc: 'Roll out a new lakehouse blueprint.' },
+];
+export const FED_COMMANDS = [
+  { ty: 'trigger pipeline · spc_capability_daily', st: 'executed', when: '2 min ago' },
+  { ty: 'push config · sync.interval=5m', st: 'pulled', when: '1 hour ago' },
+  { ty: 'push blueprint · bp-2026.06', st: 'queued', when: '3 hours ago' },
+  { ty: 'push config · retention=90d', st: 'refused', when: 'Yesterday' },
+];
+export const FED_CMD_KIND = { executed: 'success', pulled: 'blue', queued: 'warning', refused: 'error' };
+export const FED_NEW_STEPS = [['Plant', 'ID & network'], ['Sources', 'Connections'], ['Blueprint', 'Generate'], ['Deploy', 'Guide']];

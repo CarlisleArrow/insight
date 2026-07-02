@@ -8,6 +8,7 @@ import {
 } from '@carbon/react';
 import Icon, { iconFor } from '../components/Icon.jsx';
 import { PageHeader, SubSwitch, CarbonTable, StatusDot, RowMenu, EmptyState } from '../components/shared.jsx';
+import { TrendLine } from '../components/Charts.jsx';
 import * as api from '../data/api.js';
 import { tr, trList } from '../i18n.js';
 
@@ -327,15 +328,217 @@ function PublishWizard({ onClose, onDone, notify, lang }) {
   );
 }
 
+/* ---- safe parse for stored contract fields (string | array | object) ---- */
+function parseField(v, fallback) {
+  if (v == null) return fallback;
+  if (Array.isArray(v) || typeof v === 'object') return v;
+  try { return JSON.parse(v); } catch { return fallback; }
+}
+
+/* ============================ TRY-IT DEBUGGER (§P0-2) ============================
+   Generates a parameter form from the API's allowed_filters, fires a REAL GET
+   against the public endpoint, and shows status + latency + response JSON. The
+   point: an auth_mode=none API returns data here with no credentials, yet only
+   ever whitelisted, masked fields. */
+function TryItDebugger({ api: a, lang }) {
+  const filters = parseField(a.allowed_filters, []);
+  const pag = parseField(a.pagination, {}) || {};
+  const [vals, setVals] = useState({});
+  const [limit, setLimit] = useState(pag.default_size || 50);
+  const [apiKey, setApiKey] = useState('');
+  const [resp, setResp] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  const set = (k, v) => setVals((s) => ({ ...s, [k]: v }));
+  const missingRequired = filters.some((f) => f.required && !String(vals[f.column] ?? '').trim());
+
+  const send = async () => {
+    setBusy(true);
+    const params = {};
+    filters.forEach((f) => { const v = vals[f.column]; if (v !== undefined && String(v).trim() !== '') params[f.column] = v; });
+    if (limit) params.limit = limit;
+    try {
+      const r = await api.callDataApi(a.name, params, a.auth_mode === 'apikey' ? apiKey : undefined);
+      setResp(r);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const statusKind = !resp ? 'gray' : resp.status === 0 ? 'red' : resp.ok ? 'success' : (resp.status >= 500 ? 'red' : 'amber');
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  return (
+    <div style={{ border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', borderBottom: '1px solid var(--wire-border)', fontSize: '.8125rem', fontWeight: 600 }}>
+        <Icon name="play--outline" size={16} />{tr(lang, 'Try it')}
+        <Tag type="green" size="sm" style={{ marginLeft: 'auto' }}>GET</Tag>
+        <span className="ip-mono" style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)' }}>/data-api/v1/{a.name}</span>
+      </div>
+      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {a.auth_mode === 'none' && (
+          <InlineNotification kind="info" lowContrast hideCloseButton title={tr(lang, 'No auth, still safe by contract')}
+            subtitle={tr(lang, 'Send with no credentials — the response can only ever contain whitelisted, masked fields.')} />
+        )}
+        {a.auth_mode === 'apikey' && (
+          <TextInput id="tryit-key" type="password" labelText={tr(lang, 'API key (x-api-key)')} placeholder="ipas_sk_…" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+        )}
+
+        <div className="w-fld"><label className="cds--label">{tr(lang, 'Allowed query parameters')}</label>
+          {filters.length === 0
+            ? <span style={{ fontSize: '.75rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'No parameters — this API only supports paging.')}</span>
+            : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
+                {filters.map((f) => (
+                  <TextInput key={f.column} id={`tryit-${f.column}`} size="sm"
+                    labelText={`${f.column} (${(f.ops || []).join(', ')})${f.required ? ' *' : ''}`}
+                    placeholder={f.default != null ? String(f.default) : '—'}
+                    value={vals[f.column] ?? ''} onChange={(e) => set(f.column, e.target.value)} />
+                ))}
+              </div>
+            )}
+        </div>
+        <div style={{ maxWidth: 200 }}>
+          <TextInput id="tryit-limit" size="sm" labelText={tr(lang, 'Limit')} value={String(limit)} onChange={(e) => setLimit(e.target.value.replace(/[^0-9]/g, ''))} />
+        </div>
+
+        <div>
+          <Button kind="primary" renderIcon={iconFor('send')} disabled={busy || missingRequired} onClick={send}>
+            {busy ? tr(lang, 'Sending…') : tr(lang, 'Send request')}
+          </Button>
+        </div>
+
+        {resp && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <StatusDot kind={statusKind}>{resp.status === 0 ? tr(lang, 'Network error') : `HTTP ${resp.status}`}</StatusDot>
+              <span style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)' }}><Icon name="time" size={12} /> {resp.ms} ms</span>
+              <span className="ip-mono" style={{ fontSize: '.6875rem', color: 'var(--cds-text-secondary)', wordBreak: 'break-all' }}>{origin}{resp.url}</span>
+            </div>
+            <CodeSnippet type="multi" feedback={tr(lang, 'Copied')} style={{ maxHeight: 320 }}>
+              {resp.error ? resp.error : (typeof resp.body === 'string' ? resp.body : JSON.stringify(resp.body, null, 2))}
+            </CodeSnippet>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /* ============================ API DETAIL ============================ */
+/* Usage / Audit / Versions panels — defensive against varying backend shapes;
+   `null` state means the endpoint isn't wired yet (// 待确认) → graceful notice. */
+function UsagePanel({ usage, lang }) {
+  if (usage === undefined) return <div style={{ marginTop: 12, color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Loading…')}</div>;
+  if (usage === null) {
+    return <InlineNotification kind="info" lowContrast hideCloseButton style={{ marginTop: 8 }}
+      title={tr(lang, 'Usage metrics')}
+      subtitle={tr(lang, 'Per-API call volume and latency are recorded in the access audit. A usage dashboard will surface them here.')} />;
+  }
+  const total = usage.total ?? usage.calls ?? usage.count ?? 0;
+  const p95 = usage.p95_ms ?? usage.latency_p95 ?? usage.p95;
+  const limited = usage.rate_limited ?? usage.throttled ?? 0;
+  const series = usage.series || usage.by_day || usage.timeline || [];
+  const kpis = [
+    { k: 'Total calls', v: String(total), icon: 'analytics' },
+    { k: 'p95 latency', v: p95 != null ? `${p95}ms` : '—', icon: 'time' },
+    { k: 'Rate-limit hits', v: String(limited), icon: 'warning--filled', color: limited ? 'var(--cds-support-warning)' : undefined },
+  ];
+  const line = series.map((d) => ({ group: 'calls', key: String(d.key ?? d.t ?? d.date ?? d.label ?? ''), value: Number(d.value ?? d.calls ?? d.count ?? 0) }));
+  return (
+    <div style={{ marginTop: 8 }}>
+      <div className="w-stats">
+        {kpis.map((s) => (
+          <div className="s" key={s.k}>
+            <div className="k"><Icon name={s.icon} size={16} style={s.color ? { color: s.color } : undefined} />{tr(lang, s.k)}</div>
+            <div className="v">{s.v}</div>
+          </div>
+        ))}
+      </div>
+      {line.length > 0 && (
+        <div style={{ marginTop: 16 }}>
+          <div className="w-section-label">{tr(lang, 'Call volume')}</div>
+          <TrendLine data={line} group="calls" height={180} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AuditPanel({ audit, lang }) {
+  if (audit === undefined) return <div style={{ marginTop: 12, color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Loading…')}</div>;
+  if (audit === null) {
+    return <InlineNotification kind="info" lowContrast hideCloseButton style={{ marginTop: 8 }}
+      title={tr(lang, 'Access audit')}
+      subtitle={tr(lang, 'Every call is recorded with caller, parameters, rows returned and whether masking was applied. The audit feed will surface here.')} />;
+  }
+  if (!audit.length) return <div style={{ marginTop: 8 }}><EmptyState title={tr(lang, 'No calls recorded yet')} sub={tr(lang, 'Calls to this API will appear here once it is invoked.')} icon="analytics" /></div>;
+  const rows = audit.map((r, i) => ({
+    id: r.id || String(i),
+    ts: r.ts || r.time || r.at || r.created_at || '—',
+    caller: r.caller || r.principal || r.subject || r.client || '—',
+    params: typeof r.params === 'string' ? r.params : JSON.stringify(r.params || r.query || {}),
+    rows_returned: r.rows_returned ?? r.rows ?? r.count ?? '—',
+    masked: r.masked ?? r.masking_applied ?? false,
+  }));
+  return (
+    <div style={{ marginTop: 8 }}>
+      <CarbonTable
+        headers={[
+          { key: 'ts', header: tr(lang, 'Time'), mono: true },
+          { key: 'caller', header: tr(lang, 'Caller') },
+          { key: 'params', header: tr(lang, 'Parameters'), mono: true },
+          { key: 'rows_returned', header: tr(lang, 'Rows') },
+          { key: 'masked', header: tr(lang, 'Masked') },
+        ]}
+        rows={rows}
+        renderCell={(r, k) => k === 'masked'
+          ? (r.masked ? <Tag type="magenta" size="sm">{tr(lang, 'Masked')}</Tag> : <span style={{ color: 'var(--cds-text-placeholder)' }}>—</span>)
+          : r[k]} />
+    </div>
+  );
+}
+
+function VersionsPanel({ versions, current, lang, onPublish }) {
+  const publishBtn = <Button kind="primary" size="lg" renderIcon={iconFor('play')} onClick={onPublish}>{tr(lang, 'Publish new version')}</Button>;
+  if (versions === undefined) return <div style={{ marginTop: 12, color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Loading…')}</div>;
+  const list = (versions && versions.length) ? versions : [{ version: current || 'v1', status: 'published', published_at: '—', _current: true }];
+  return (
+    <div style={{ marginTop: 8 }}>
+      <CarbonTable
+        headers={[
+          { key: 'version', header: tr(lang, 'Version'), mono: true },
+          { key: 'status', header: tr(lang, 'Status') },
+          { key: 'published_at', header: tr(lang, 'Published'), mono: true },
+        ]}
+        rows={list.map((v, i) => ({ id: String(i), version: v.version || v.name || `v${i + 1}`, status: v.status || 'published', published_at: v.published_at || v.created_at || '—' }))}
+        actions={publishBtn}
+        renderCell={(r, k) => k === 'status'
+          ? <StatusDot kind={STATUS_KIND[r.status] || 'gray'}>{tr(lang, r.status)}</StatusDot>
+          : r[k]} />
+      {versions === null && (
+        <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Icon name="information" size={14} />{tr(lang, 'Showing the active version. A full version history endpoint will populate this list.')}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ApiDetail({ api: a, onBack, onChanged, notify, lang }) {
   const [keys, setKeys] = useState([]);
   const [newKey, setNewKey] = useState(null);
-  useEffect(() => {
-    if (a.auth_mode === 'apikey') api.listDataApiKeys(a.id || a.api_id).then(setKeys).catch(() => setKeys([]));
-  }, [a.id, a.api_id, a.auth_mode]);
-
+  const [usage, setUsage] = useState(undefined); // undefined=loading, null=unavailable
+  const [audit, setAudit] = useState(undefined);
+  const [versions, setVersions] = useState(undefined);
   const id = a.id || a.api_id;
+  useEffect(() => {
+    if (a.auth_mode === 'apikey') api.listDataApiKeys(id).then(setKeys).catch(() => setKeys([]));
+    api.dataApiUsage(id).then((u) => setUsage(u || null)).catch(() => setUsage(null));
+    api.dataApiAudit(id).then((r) => setAudit(Array.isArray(r) ? r : (r && r.rows) || [])).catch(() => setAudit(null));
+    api.dataApiVersions(id).then((r) => setVersions(Array.isArray(r) ? r : (r && r.rows) || [])).catch(() => setVersions(null));
+  }, [id, a.auth_mode]);
+
   const allowed = (() => { try { return JSON.parse(a.allowed_columns || '[]'); } catch { return []; } })();
 
   const mintKey = async () => {
@@ -361,7 +564,7 @@ function ApiDetail({ api: a, onBack, onChanged, notify, lang }) {
       </div>
       <Tabs>
         <TabList aria-label="API detail">
-          <Tab>{tr(lang, 'Overview')}</Tab><Tab>{tr(lang, 'Contract')}</Tab><Tab>{tr(lang, 'Authentication')}</Tab><Tab>{tr(lang, 'Usage')}</Tab>
+          <Tab>{tr(lang, 'Overview')}</Tab><Tab>{tr(lang, 'Contract')}</Tab><Tab>{tr(lang, 'Authentication')}</Tab><Tab>{tr(lang, 'Docs')}</Tab><Tab>{tr(lang, 'Usage')}</Tab><Tab>{tr(lang, 'Audit')}</Tab><Tab>{tr(lang, 'Versions')}</Tab>
         </TabList>
         <TabPanels>
           <TabPanel>
@@ -405,9 +608,35 @@ function ApiDetail({ api: a, onBack, onChanged, notify, lang }) {
             </div>
           </TabPanel>
           <TabPanel>
-            <InlineNotification kind="info" lowContrast hideCloseButton style={{ marginTop: 8 }}
-              title={tr(lang, 'Usage metrics')}
-              subtitle={tr(lang, 'Per-API call volume and latency are recorded in the access audit. A usage dashboard will surface them here.')} />
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <StructuredListWrapper isCondensed>
+                <StructuredListBody>
+                  <StructuredListRow><StructuredListCell>{tr(lang, 'Method')}</StructuredListCell><StructuredListCell><Tag type="green" size="sm">GET</Tag></StructuredListCell></StructuredListRow>
+                  <StructuredListRow><StructuredListCell>{tr(lang, 'Endpoint URL')}</StructuredListCell><StructuredListCell className="ip-mono">/data-api/v1/{a.name}</StructuredListCell></StructuredListRow>
+                  <StructuredListRow><StructuredListCell>{tr(lang, 'Auth mode')}</StructuredListCell><StructuredListCell>{tr(lang, AUTH_LABEL[a.auth_mode] || a.auth_mode)}</StructuredListCell></StructuredListRow>
+                </StructuredListBody>
+              </StructuredListWrapper>
+              <div>
+                <div className="w-section-label">cURL</div>
+                <CodeSnippet type="multi" feedback={tr(lang, 'Copied')}>
+                  {`curl ${a.auth_mode === 'apikey' ? '-H "x-api-key: <key>" ' : ''}"${typeof window !== 'undefined' ? window.location.origin : ''}/data-api/v1/${a.name}"`}
+                </CodeSnippet>
+              </div>
+              <div>
+                <div className="w-section-label">{tr(lang, 'Try it')}</div>
+                <TryItDebugger api={a} lang={lang} />
+              </div>
+            </div>
+          </TabPanel>
+          <TabPanel>
+            <UsagePanel usage={usage} lang={lang} />
+          </TabPanel>
+          <TabPanel>
+            <AuditPanel audit={audit} lang={lang} />
+          </TabPanel>
+          <TabPanel>
+            <VersionsPanel versions={versions} current={a.version} lang={lang}
+              onPublish={async () => { try { await api.publishDataApi(id); onChanged(); notify && notify({ kind: 'success', title: tr(lang, 'API published') }); } catch (err) { notify && notify({ kind: 'error', title: tr(lang, 'Publish failed.'), subtitle: (err.detail || String(err.message || err)) }); } }} />
           </TabPanel>
         </TabPanels>
       </Tabs>
