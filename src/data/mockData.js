@@ -18,10 +18,11 @@ export const IPAS_NAV = [
   { id: 'monitoring', label: 'Monitoring & Ops', icon: 'chart--line' },
   { id: 'ai', label: 'AI', icon: 'watson' },
   { id: 'federation', label: 'Federation', icon: 'share' },
+  { id: 'govfoundation', label: 'Governance Foundation', icon: 'locked' },
   { id: 'admin', label: 'Platform Admin', icon: 'settings' },
 ];
 
-export const CURRENT_USER = { name: 'Lena Marsh', initials: 'LM', role: 'Data Engineer', firstName: 'Lena', email: 'lmarsh@ipas' };
+export const CURRENT_USER = { name: 'Carlisle Arrow', initials: 'CA', role: 'Principle System Architect', firstName: 'Carlisle', email: 'carrow@insight' };
 
 /* ---------- Welcome ---------- */
 export const WELCOME_ACTIONS = [
@@ -216,7 +217,7 @@ export const LIN_NODES = [
 export const LIN_EDGES = [['l1', 'l2'], ['l2', 'l4'], ['l3', 'l5'], ['l4', 'l5'], ['l5', 'l6']];
 
 export const ACCESS_USERS = [
-  { name: 'Lena Marsh', email: 'lmarsh@ipas', role: 'Data Engineer', status: 'Active' },
+  { name: 'Carlisle Arrow', email: 'lmarsh@ipas', role: 'Data Engineer', status: 'Active' },
   { name: 'Ade Okafor', email: 'aokafor@ipas', role: 'Analyst', status: 'Active' },
   { name: 'Ravi Vance', email: 'rvance@ipas', role: 'Steward', status: 'Active' },
   { name: 'Mara Díaz', email: 'mdiaz@ipas', role: 'Viewer', status: 'Invited' },
@@ -297,7 +298,7 @@ export const ADMIN_DATA = {
       { key: 'role', header: 'Role' }, { key: 'org', header: 'Organization' }, { key: 'status', header: 'Status' },
     ],
     rows: [
-      { name: 'Lena Marsh', email: 'lmarsh@ipas', role: 'Admin', org: 'Manufacturing', status: 'Active' },
+      { name: 'Carlisle Arrow', email: 'lmarsh@ipas', role: 'Admin', org: 'Manufacturing', status: 'Active' },
       { name: 'Ade Okafor', email: 'aokafor@ipas', role: 'Editor', org: 'Finance', status: 'Active' },
       { name: 'Ravi Vance', email: 'rvance@ipas', role: 'Steward', org: 'Logistics', status: 'Active' },
       { name: 'Mara Díaz', email: 'mdiaz@ipas', role: 'Viewer', org: 'Operations', status: 'Suspended' },
@@ -407,7 +408,7 @@ export const PROFILE_TABS = [
   { id: 'sessions', label: 'Security & sessions' },
 ];
 export const PROFILE_DETAILS = [
-  { dt: 'Full name', dd: 'Lena Marsh' },
+  { dt: 'Full name', dd: 'Carlisle Arrow' },
   { dt: 'Email', dd: 'lmarsh@ipas' },
   { dt: 'Department', dd: 'Manufacturing Analytics' },
   { dt: 'Identity source', dd: 'Active Directory · SCIM' },
@@ -608,3 +609,143 @@ export const FED_COMMANDS = [
 ];
 export const FED_CMD_KIND = { executed: 'success', pulled: 'blue', queued: 'warning', refused: 'error' };
 export const FED_NEW_STEPS = [['Plant', 'ID & network'], ['Sources', 'Connections'], ['Blueprint', 'Generate'], ['Deploy', 'Guide']];
+
+
+/* ============================================================
+   Governance Foundation (OneID · Data Standards · Bus Matrix ·
+   Asset Inventory · Smart Governance)
+   ============================================================ */
+export const GOV_DOMAINS = ['All subject domains', 'QMS · Quality', 'MES · Manufacturing', 'EAP', 'ERP', 'EMS', 'E-Mapping'];
+
+/* ---------- OneID ---------- */
+export const GF_ENTITIES = [
+  { id: 1, type: 'Lot 批次', global: '48,210', sources: 4, coverage: 98, rules: 3, status: 'Active', def: 'A production lot — a batch of wafers processed together through a route.', strat: 'lot_<plant>_<seq>', systems: ['MES', 'QMS', 'EAP', 'ERP'] },
+  { id: 2, type: 'Wafer 晶圆', global: '1.24M', sources: 3, coverage: 94, rules: 2, status: 'Active', def: 'An individual silicon wafer, tracked by slot within a lot.', strat: 'wfr_<lot>_<slot>', systems: ['MES', 'QMS', 'EAP'] },
+  { id: 3, type: 'Product 产品', global: '2,140', sources: 3, coverage: 99, rules: 2, status: 'Active', def: 'A finished product / device type in the catalog.', strat: 'prod_<sku>', systems: ['ERP', 'MES', 'QMS'] },
+  { id: 4, type: 'Equipment 设备', global: '860', sources: 2, coverage: 76, rules: 2, status: 'Draft', def: 'A process tool / equipment unit on the floor.', strat: 'eqp_<plant>_<id>', systems: ['EAP', 'MES'] },
+];
+export const GF_SRC_MAP = [
+  { sys: 'MES', field: 'lot_no', method: 'direct', ex: 'L2026-0421' },
+  { sys: 'QMS', field: 'batch_id', method: 'rule', ex: 'B-26-0421' },
+  { sys: 'EAP', field: 'lotId', method: 'rule', ex: '260421' },
+  { sys: 'ERP', field: 'production_order', method: 'fuzzy', ex: 'PO-4421 (0.91)' },
+];
+export const GF_METHOD_TAG = { direct: 'green', rule: 'blue', fuzzy: 'purple' };
+export const GF_ID_PREVIEW = [
+  { gid: 'lot_A_000421', mes: 'L2026-0421', qms: 'B-26-0421', eap: '260421', erp: 'PO-4421', conf: 100 },
+  { gid: 'lot_A_000422', mes: 'L2026-0422', qms: 'B-26-0422', eap: '260422', erp: 'PO-4422', conf: 100 },
+  { gid: 'lot_B_000108', mes: 'L2026-0108', qms: 'B-26-0108', eap: '260108', erp: 'PO-4390', conf: 91 },
+];
+export const GF_CONFLICTS = [
+  { native: 'QMS.batch_id = B-26-0450', issue: 'No MES lot within ±1 day window', kind: 'unmatched' },
+  { native: 'ERP.PO-4501', issue: 'Maps to two MES lots (L2026-0501, L2026-0502)', kind: 'one-to-many' },
+  { native: 'EAP.lotId = 260119', issue: 'Fuzzy score 0.62 below 0.85 threshold', kind: 'low-confidence' },
+];
+export const GF_GRAPH_NODES = [
+  { sys: 'Global', nid: 'lot_A_000421', x: 50, y: 50, center: true },
+  { sys: 'MES', nid: 'L2026-0421', x: 20, y: 22 },
+  { sys: 'QMS', nid: 'B-26-0421', x: 80, y: 22 },
+  { sys: 'EAP', nid: '260421', x: 18, y: 55 },
+  { sys: 'ERP', nid: 'PO-4421', x: 82, y: 58 },
+  { sys: '→ Wafer ×25', nid: 'wfr_…_01–25', x: 30, y: 88 },
+  { sys: '→ Product', nid: 'prod_9F2', x: 72, y: 88 },
+];
+
+/* ---------- Data Standards ---------- */
+export const STD_NAMING = [
+  { id: 1, name: 'Dimension table prefix', pattern: 'dim_*', scope: 'All gold tables', ex: 'dim_product, dim_date', on: true },
+  { id: 2, name: 'Fact table prefix', pattern: 'fact_*', scope: 'All gold tables', ex: 'fact_spc_measurement', on: true },
+  { id: 3, name: 'Field case', pattern: 'lower_snake_case', scope: 'All layers', ex: 'process_id, cal_date', on: true },
+  { id: 4, name: 'Bronze raw suffix', pattern: '*_raw', scope: 'Bronze layer', ex: 'qc_results_raw', on: false },
+];
+export const STD_CODING = [
+  { id: 1, name: 'Process code', code: 'P1 / P2 / P3', mean: 'Photolithography / Etch / CMP', on: true },
+  { id: 2, name: 'Defect code', code: 'D-2xx', mean: 'Standard defect taxonomy (D-204 = solder bridge)', on: true },
+  { id: 3, name: 'Plant code', code: 'A / B / C / D', mean: 'Shanghai / Penang / Dresden / Austin', on: true },
+];
+export const STD_DOMAIN = [
+  { id: 1, field: 'cpk', domain: '≥ 0, numeric', note: 'Capability index — never negative', on: true },
+  { id: 2, field: 'sensitivity', domain: 'Public | Internal | Confidential | Restricted', note: 'Enum, from ACL', on: true },
+  { id: 3, field: 'shift', domain: 'A | B | C', note: '3-shift enum', on: true },
+];
+export const STD_DICT = [
+  { id: 1, term: 'Process capability', field: 'cpk', type: 'decimal(5,2)', def: 'Ratio of spec tolerance to process spread' },
+  { id: 2, term: 'Yield', field: 'yield_pct', type: 'decimal(5,2)', def: 'Good units / total units × 100' },
+  { id: 3, term: 'Lot', field: 'lot_id', type: 'varchar(24)', def: 'Global lot identifier (see OneID)' },
+];
+export const STD_TYPES = [
+  { id: 1, concept: 'Identifier', type: 'varchar(24)', note: 'Global entity IDs' },
+  { id: 2, concept: 'Metric value', type: 'decimal(12,4)', note: 'Numeric measures' },
+  { id: 3, concept: 'Timestamp', type: 'timestamp(6) UTC', note: 'All event times in UTC' },
+];
+export const STD_VIOLATIONS = [
+  { ok: false, field: 'ProcessID', rule: 'Field case — lower_snake_case', fix: 'Rename to process_id' },
+  { ok: false, field: 'defect_cd', rule: 'Coding standard — defect code D-2xx', fix: 'Value "DEF07" is not in the standard set' },
+  { ok: true, field: 'cal_date', rule: 'Field case + type standard', fix: '' },
+  { ok: true, field: 'cpk', rule: 'Value domain ≥ 0', fix: '' },
+];
+export const STD_IMPACT = [
+  { model: 'gold.spc_capability_daily', domain: 'QMS', fields: 'ProcessID', owner: 'L. Marsh' },
+  { model: 'bronze.qc_results_raw', domain: 'QMS', fields: 'BatchID, TestDate', owner: 'R. Vance' },
+  { model: 'silver.eqp_state', domain: 'EAP', fields: 'EqpID', owner: 'A. Okafor' },
+];
+
+/* ---------- Bus Matrix ---------- */
+export const BM_DIMS = ['Date', 'Product', 'Lot', 'Process', 'Line', 'Shift', 'Equipment', 'Plant'];
+export const BM_PROCESSES = [
+  { name: 'Chemical inspection', dom: 'QMS', use: [1, 1, 1, 1, 0, 1, 0, 1] },
+  { name: 'Scrap / rework', dom: 'MES', use: [1, 1, 1, 1, 1, 1, 1, 1] },
+  { name: 'Yield analysis', dom: 'QMS', use: [1, 1, 1, 1, 1, 0, 0, 1] },
+  { name: 'Equipment downtime', dom: 'EAP', use: [1, 0, 0, 1, 1, 1, 1, 1] },
+  { name: 'Energy consumption', dom: 'EMS', use: [1, 1, 0, 1, 1, 1, 1, 1] },
+  { name: 'Order fulfillment', dom: 'ERP', use: [1, 1, 1, 0, 0, 0, 0, 1] },
+];
+export const BM_CONFORMED = [
+  { name: 'Date', grain: 'Day', scd: 'SCD-0', shared: 6, owner: 'Platform', refs: 'All domains' },
+  { name: 'Product', grain: 'SKU', scd: 'SCD-2', shared: 5, owner: 'ERP', refs: 'QMS, MES, ERP, EMS' },
+  { name: 'Lot', grain: 'Lot', scd: 'SCD-1', shared: 4, owner: 'MES', refs: 'QMS, MES, ERP' },
+  { name: 'Process', grain: 'Step', scd: 'SCD-1', shared: 5, owner: 'MES', refs: 'QMS, MES, EAP, EMS' },
+  { name: 'Plant', grain: 'Site', scd: 'SCD-0', shared: 6, owner: 'Platform', refs: 'All domains' },
+];
+export const BM_INCONSISTENCIES = [
+  { a: 'QMS.dim_product_qms', b: 'ERP.dim_product (conformed)', issue: 'Duplicate product dimension in QMS', act: 'Merge into conformed Product' },
+  { a: 'EMS.dim_line_local', b: 'MES.dim_line', issue: 'Line dimension defined twice with different grain', act: 'Align grain & merge' },
+];
+
+/* ---------- Asset Inventory ---------- */
+export const AV_ASSETS = [
+  { id: 1, name: 'gold.spc_capability_daily', dom: 'QMS', layer: 'gold', heat: '14.2k', storage: '4.1 GB', compute: '$62', deps: 28, quality: 96, score: 94, cat: 'high', owner: 'L. Marsh', last: '2 min ago' },
+  { id: 2, name: 'gold.agg_yield_daily', dom: 'QMS', layer: 'gold', heat: '9.8k', storage: '2.8 GB', compute: '$48', deps: 19, quality: 93, score: 88, cat: 'high', owner: 'M. Díaz', last: '5 min ago' },
+  { id: 3, name: 'silver.spc_measurements', dom: 'QMS', layer: 'silver', heat: '6.1k', storage: '38 GB', compute: '$210', deps: 12, quality: 90, score: 72, cat: 'costly', owner: 'R. Vance', last: '1 h ago' },
+  { id: 4, name: 'bronze.legacy_mes_dump', dom: 'MES', layer: 'bronze', heat: '0', storage: '112 GB', compute: '$340', deps: 0, quality: 61, score: 8, cat: 'zombie', owner: 'unassigned', last: '134 days ago' },
+  { id: 5, name: 'silver.eqp_state_v1', dom: 'EAP', layer: 'silver', heat: '2', storage: '54 GB', compute: '$180', deps: 0, quality: 70, score: 14, cat: 'zombie', owner: 'A. Okafor', last: '96 days ago' },
+  { id: 6, name: 'gold.energy_daily', dom: 'EMS', layer: 'gold', heat: '3.2k', storage: '1.2 GB', compute: '$28', deps: 7, quality: 88, score: 79, cat: 'high', owner: 'S. Khan', last: '18 min ago' },
+];
+export const AV_CAT_LABEL = { high: 'High value', zombie: 'Zombie', costly: 'Costly / low-value' };
+export const AV_ROI_DOMAINS = [['QMS', 90, 30], ['MES', 60, 55], ['EAP', 40, 45], ['ERP', 55, 25], ['EMS', 50, 20]];
+
+/* ---------- Smart Governance ---------- */
+export const SG_SENS_FIELDS = [
+  { id: 1, field: 'operator_phone', table: 'bronze.shift_log', type: 'Phone number', conf: 97, level: 'Confidential', status: 'pending' },
+  { id: 2, field: 'id_card_no', table: 'bronze.hr_master', type: 'National ID', conf: 99, level: 'Restricted', status: 'pending' },
+  { id: 3, field: 'recipe_params', table: 'silver.process_recipe', type: 'Process secret', conf: 88, level: 'Restricted', status: 'pending' },
+  { id: 4, field: 'customer_name', table: 'silver.order_lines', type: 'Customer PII', conf: 94, level: 'Confidential', status: 'confirmed' },
+  { id: 5, field: 'cal_date', table: 'gold.spc_capability_daily', type: 'Date (not sensitive)', conf: 12, level: 'Internal', status: 'ignored' },
+];
+export const SG_LEVEL_TAG = { Restricted: 'red', Confidential: 'purple', Internal: 'blue', Public: 'green' };
+export const SG_CLASSIFY = [
+  { id: 1, asset: 'silver.order_lines', cls: 'Customer data', level: 'Confidential', conf: 93 },
+  { id: 2, asset: 'silver.process_recipe', cls: 'Trade secret', level: 'Restricted', conf: 90 },
+  { id: 3, asset: 'gold.energy_daily', cls: 'Operational', level: 'Internal', conf: 96 },
+  { id: 4, asset: 'bronze.hr_master', cls: 'Employee PII', level: 'Restricted', conf: 98 },
+];
+export const SG_CLS_DIST = [['Restricted', 'red', 18], ['Confidential', 'purple', 26], ['Internal', 'blue', 44], ['Public', 'green', 12]];
+export const SG_SEMANTIC = [
+  { field: 'gold.spc_capability_daily.cpk', nl: 'Process capability index — ratio of spec tolerance to 6σ process spread; ≥1.33 healthy.', dk: 'Cpk < 1.0 triggers an alert; computed only from in-control points.', conf: 94 },
+  { field: 'silver.spc_measurements.xbar', nl: 'Subgroup mean of a quality characteristic per measurement window.', dk: 'Used to derive control-chart center line.', conf: 89 },
+];
+export const SG_RULES = [
+  { id: 1, name: 'Auto-tag new sensitive tables', when: 'New table contains a field AI flags as sensitive', then: 'Tag + notify owner', on: true },
+  { id: 2, name: 'Stale asset sweep', when: 'Asset idle 90 days with no downstream', then: 'Flag as archive candidate', on: true },
+  { id: 3, name: 'Missing semantics guard', when: 'Gold table has fields without nl_description', then: 'Queue for AI autofill', on: false },
+];

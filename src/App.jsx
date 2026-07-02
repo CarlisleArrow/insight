@@ -15,6 +15,7 @@ import Governance from './pages/Governance.jsx';
 import Monitoring from './pages/Monitoring.jsx';
 import Ai from './pages/Ai.jsx';
 import Federation from './pages/Federation.jsx';
+import GovFoundation from './pages/GovFoundation.jsx';
 import Admin from './pages/Admin.jsx';
 import { tr } from './i18n.js';
 
@@ -28,6 +29,7 @@ const SECTIONS = {
   monitoring: Monitoring,
   ai: Ai,
   federation: Federation,
+  govfoundation: GovFoundation,
   admin: Admin,
 };
 

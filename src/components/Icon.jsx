@@ -13,7 +13,7 @@ import {
   Mobile, Laptop, Security, SettingsAdjust, Keyboard, Enterprise, Screen,
   Translate, Api, StarFilled, Star, Copy, InformationFilled, ArrowUp, Idea,
   Apps, Warning, Subtract, TrashCan, Unlocked, PlayOutline, StopOutline,
-  ErrorOutline, Calendar, Minimize, Map,
+  ErrorOutline, Calendar, Minimize, Map, Upload,
 } from '@carbon/icons-react';
 
 const REGISTRY = {
@@ -105,6 +105,7 @@ const REGISTRY = {
   'error--outline': ErrorOutline,
   calendar: Calendar,
   minimize: Minimize,
+  upload: Upload,
 };
 
 export default function Icon({ name, size = 16, className, style }) {
