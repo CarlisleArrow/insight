@@ -6,7 +6,8 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
+	host: '0.0.0.0',
+    port: 15173,
     open: true,
     watch: {
       // these can be locked/large and have crashed the watcher (EBUSY)
@@ -16,13 +17,13 @@ export default defineConfig({
     // in dev (no CORS). Override the target with VITE_API_TARGET if needed.
     proxy: {
       '/api': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8088',
+        target: process.env.VITE_API_TARGET || 'http://172.16.23.239:8088',
         changeOrigin: true,
       },
       // Public read-only Data API endpoints (dataapi_external.go). The in-product
       // "Try it" debugger calls these directly to prove "safe even without auth".
       '/data-api': {
-        target: process.env.VITE_API_TARGET || 'http://localhost:8088',
+        target: process.env.VITE_API_TARGET || 'http://172.16.23.239:8088',
         changeOrigin: true,
       },
     },

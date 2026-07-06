@@ -35,6 +35,7 @@ import (
 	"gitlab.siptory.com/ipas/control-plane/internal/auth"
 	"gitlab.siptory.com/ipas/control-plane/internal/authz"
 	"gitlab.siptory.com/ipas/control-plane/internal/config"
+	"gitlab.siptory.com/ipas/control-plane/internal/federation"
 	"gitlab.siptory.com/ipas/control-plane/internal/orchestrator"
 	"gitlab.siptory.com/ipas/control-plane/internal/query"
 	"gitlab.siptory.com/ipas/control-plane/internal/report"
@@ -120,11 +121,22 @@ func main() {
 	// Keycloak groups, bootstrap admins, DB role bindings, and a default-role
 	// fallback so real users (whose tokens carry no groups) are still authorized.
 	configSvc := authz.NewConfigService(store)
-	rbacResolver := authz.NewRBAC(store, configSvc, cfg.Auth.BootstrapAdmins, cfg.Auth.DefaultRole)
+	rbacResolver := authz.NewRBAC(store, configSvc, cfg.Auth.BootstrapAdmins, cfg.Auth.DefaultRole,
+		cfg.Auth.GroupAdminGroups, cfg.Insight.FactoryID)
+
+	// Deployment role (§22.2): factory vs hybrid drives which surfaces exist.
+	log.Info("deployment role", "role", cfg.Insight.Role, "factory_id", cfg.Insight.FactoryID)
+	if cfg.Insight.FactoryID == "" {
+		log.Warn("insight.factory_id is empty — set INSIGHT_FACTORY_ID (required for federation)")
+	}
+	if !cfg.Insight.IsHybrid() && cfg.Federation.TowerEndpoint == "" {
+		log.Warn("factory role without federation.tower_endpoint — upward reporting disabled")
+	}
 
 	handlers := &httpapi.Handlers{
 		Log:           log,
 		Metrics:       telemetry.NewMetrics(),
+		Cfg:           cfg,
 		Store:         store,
 		Resolver:      authz.NewResolver(store),
 		RBAC:          rbacResolver,
@@ -148,9 +160,29 @@ func main() {
 	scheduler.Start(rootCtx)
 	defer scheduler.Stop()
 
+	// Agent flow scheduler (§21) — same cron machinery, firing published
+	// schedule-triggered flows. Scheduled runs carry no caller groups, so the
+	// query gateway grants them only unrestricted data.
+	agentSched := report.New(log, handlers.RunAgentFlowByID, store.AgentFlowSchedules)
+	agentSched.Start(rootCtx)
+	defer agentSched.Stop()
+
+	// Federation workers (§19): every instance reports up + pulls commands when
+	// a tower endpoint is configured (a hybrid may point at itself via loopback
+	// to ingest its own site). Outbound-only; failures retry next tick.
+	fedCfg := federation.Config{
+		TowerEndpoint: cfg.Federation.TowerEndpoint,
+		SharedToken:   cfg.Federation.SharedToken,
+		FactoryID:     cfg.Insight.FactoryID,
+		ReportEvery:   cfg.Federation.ReportEvery(),
+		PullEvery:     cfg.Federation.PullEvery(),
+	}
+	go federation.NewReporter(fedCfg, handlers.FederationSnapshot, log).Run(rootCtx)
+	go federation.NewReceiver(fedCfg, handlers.ExecuteFederationCommand, log).Run(rootCtx)
+
 	srv := &http.Server{
 		Addr:         cfg.Server.HTTPAddr,
-		Handler:      httpapi.NewRouter(handlers, verifier),
+		Handler:      httpapi.NewRouter(handlers, verifier, cfg),
 		ReadTimeout:  time.Duration(cfg.Server.ReadTimeoutSeconds) * time.Second,
 		WriteTimeout: time.Duration(cfg.Server.WriteTimeoutSeconds) * time.Second,
 	}

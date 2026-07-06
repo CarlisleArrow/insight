@@ -34,7 +34,14 @@ type Authz struct {
 	Perms  map[Permission]bool
 	Roles  []string
 	Tenant string
+	// FactoryScope is the caller's site visibility (§22.7①): "all" for group
+	// admins, otherwise this instance's factory_id. Independent of feature
+	// permissions; enforced at cross-site query routing (tower/hybrid).
+	FactoryScope string
 }
+
+// ScopeAll marks a group administrator who may see every factory.
+const ScopeAll = "all"
 
 // Has reports whether the resolved set grants perm.
 func (a *Authz) Has(p Permission) bool {

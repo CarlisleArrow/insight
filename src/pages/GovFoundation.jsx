@@ -6,10 +6,12 @@ import {
   ProgressIndicator, ProgressStep,
   OverflowMenu, OverflowMenuItem,
   Toggle, Checkbox,
+  Select, SelectItem, Accordion, AccordionItem,
 } from '@carbon/react';
+import { MeterChart } from '@carbon/charts-react';
 import Icon, { iconFor } from '../components/Icon.jsx';
 import { PageHeader, SubSwitch, CarbonTable, StatusDot } from '../components/shared.jsx';
-import { Picker } from '../components/inputs.jsx';
+import { ChartByType } from '../components/Charts.jsx';
 import { tr, trList } from '../i18n.js';
 import {
   GOV_DOMAINS,
@@ -28,12 +30,24 @@ import {
 
 /* ============================ shared bits ============================ */
 
+/* Labeled Carbon Select — thin wrapper so pages keep the terse
+   items/value/onChange(value) API but always render a visible label. */
+function LabeledSelect({ label, items, value, onChange, size = 'sm', id }) {
+  const [fid] = useState(() => id || `gf-sel-${Math.random().toString(36).slice(2, 8)}`);
+  return (
+    <Select id={fid} labelText={label || ''} size={size} value={value}
+      onChange={(e) => onChange && onChange(e.target.value)}>
+      {items.map((it) => <SelectItem key={it} value={it} text={it} />)}
+    </Select>
+  );
+}
+
 function DomainFilter({ value, onChange, lang, extra }) {
   return (
     <div className="gf-filterbar">
-      <span className="lbl"><Icon name="filter" size={14} />{tr(lang, 'Subject domain')}</span>
-      <div style={{ width: 220 }}>
-        <Picker size="sm" items={GOV_DOMAINS.map((d) => tr(lang, d))} value={tr(lang, value)}
+      <div style={{ width: 240 }}>
+        <LabeledSelect label={tr(lang, 'Subject domain')} size="sm"
+          items={GOV_DOMAINS.map((d) => tr(lang, d))} value={tr(lang, value)}
           onChange={(v) => onChange(GOV_DOMAINS[GOV_DOMAINS.map((d) => tr(lang, d)).indexOf(v)] || v)} />
       </div>
       {extra}
@@ -93,10 +107,10 @@ function ConditionBuilder({ fields, ops = ['=', 'normalized =', 'similarity ≥'
               </span>
             )}
             <div className="w-cond__row">
-              <div style={{ width: 190 }}><Picker size="sm" items={fields} value={r.field} onChange={(v) => update(i, 'field', v)} /></div>
-              <div style={{ width: 140 }}><Picker size="sm" items={ops} value={r.op} onChange={(v) => update(i, 'op', v)} /></div>
-              <div style={{ width: 200 }}><TextInput id={`gf-cond-${i}`} labelText="" hideLabel size="sm" value={r.value} onChange={(e) => update(i, 'value', e.target.value)} /></div>
-              <button type="button" className="x" aria-label="Remove condition" onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}><Icon name="subtract" size={16} /></button>
+              <div style={{ width: 190 }}><LabeledSelect label={tr(lang, 'Field')} size="sm" items={fields} value={r.field} onChange={(v) => update(i, 'field', v)} /></div>
+              <div style={{ width: 140 }}><LabeledSelect label={tr(lang, 'Operator')} size="sm" items={ops} value={r.op} onChange={(v) => update(i, 'op', v)} /></div>
+              <div style={{ width: 200 }}><TextInput id={`gf-cond-${i}`} labelText={tr(lang, 'Value')} size="sm" value={r.value} onChange={(e) => update(i, 'value', e.target.value)} /></div>
+              <button type="button" className="x" aria-label="Remove condition" style={{ marginTop: 24 }} onClick={() => setRows((rs) => rs.filter((_, j) => j !== i))}><Icon name="subtract" size={16} /></button>
             </div>
           </div>
         ))}
@@ -126,7 +140,7 @@ function OneIDDetail({ entity, onBack, notify, lang }) {
   );
   const mappings = (
     <div style={{ marginTop: 8 }}>
-      <CarbonTable withToolbar={false}
+      <CarbonTable searchPlaceholder={tr(lang, 'Search mappings')}
         headers={[
           { key: 'sys', header: tr(lang, 'Source system') },
           { key: 'field', header: tr(lang, 'Identifier field'), mono: true },
@@ -154,7 +168,7 @@ function OneIDDetail({ entity, onBack, notify, lang }) {
   const preview = (
     <div style={{ marginTop: 8 }}>
       <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)', marginBottom: 10 }}>{tr(lang, 'Actual resolved mapping — global entity_id ↔ each source native_id, with match confidence.')}</div>
-      <CarbonTable withToolbar={false}
+      <CarbonTable searchPlaceholder={tr(lang, 'Search mappings')}
         headers={[
           { key: 'gid', header: tr(lang, 'Global entity_id'), mono: true },
           { key: 'mes', header: 'MES', mono: true }, { key: 'qms', header: 'QMS', mono: true },
@@ -167,22 +181,31 @@ function OneIDDetail({ entity, onBack, notify, lang }) {
   );
   const conflicts = (
     <div style={{ marginTop: 8 }}>
-      <InlineNotification kind="warning" lowContrast hideCloseButton
+      <InlineNotification kind="warning" lowContrast hideCloseButton style={{ maxWidth: '100%', width: '100%' }}
         title={`${GF_CONFLICTS.length} ${tr(lang, 'records need human adjudication')}`}
         subtitle={tr(lang, 'Unmatched, one-to-many, or below-threshold matches are held here for manual linking.')} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, marginTop: 12 }}>
-        {GF_CONFLICTS.map((c, i) => (
-          <div key={i} className="oid-conflict">
-            <Icon name="warning--alt" size={18} style={{ color: 'var(--cds-support-warning)', flex: '0 0 18px' }} />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontFamily: 'var(--cds-font-mono)', fontSize: '.8125rem', color: 'var(--cds-text-primary)' }}>{c.native}</div>
-              <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 2 }}>{c.issue}</div>
-            </div>
-            <Tag type="cool-gray" size="sm">{c.kind}</Tag>
-            <Button kind="tertiary" size="sm" renderIcon={iconFor('interactions')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Linked'), subtitle: tr(lang, 'Manual association recorded.') })}>{tr(lang, 'Link')}</Button>
-            <Button kind="ghost" size="sm" onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Marked'), subtitle: tr(lang, 'Flagged for review.') })}>{tr(lang, 'Ignore')}</Button>
-          </div>
-        ))}
+      <div style={{ marginTop: 12 }}>
+        <CarbonTable
+          searchPlaceholder={tr(lang, 'Search conflicts')}
+          headers={[
+            { key: 'native', header: tr(lang, 'Native identifier'), mono: true },
+            { key: 'issue', header: tr(lang, 'Issue') },
+            { key: 'kind', header: tr(lang, 'Type') },
+            { key: 'act', header: '' },
+          ]}
+          rows={GF_CONFLICTS.map((c, i) => ({ ...c, id: String(i) }))}
+          renderCell={(c, k) => {
+            if (k === 'kind') return <Tag type="cool-gray" size="sm">{c.kind}</Tag>;
+            if (k === 'act') {
+              return (
+                <span style={{ display: 'flex', gap: 4 }}>
+                  <Button kind="ghost" size="sm" hasIconOnly iconDescription={tr(lang, 'Link')} tooltipPosition="left" renderIcon={iconFor('interactions')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Linked'), subtitle: tr(lang, 'Manual association recorded.') })} />
+                  <Button kind="ghost" size="sm" hasIconOnly iconDescription={tr(lang, 'Ignore')} tooltipPosition="left" renderIcon={iconFor('close')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Marked'), subtitle: tr(lang, 'Flagged for review.') })} />
+                </span>
+              );
+            }
+            return c[k];
+          }} />
       </div>
     </div>
   );
@@ -246,7 +269,7 @@ function OneID({ notify, lang }) {
       </div>
       <CarbonTable
         searchPlaceholder={tr(lang, 'Search entities')}
-        actions={<Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={() => setModal(true)}>{tr(lang, 'Define new entity')}</Button>}
+        actions={<Button kind="primary" renderIcon={iconFor('add')} onClick={() => setModal(true)}>{tr(lang, 'Define new entity')}</Button>}
         headers={[
           { key: 'type', header: tr(lang, 'Entity type') },
           { key: 'global', header: tr(lang, 'Global entities') },
@@ -282,7 +305,7 @@ function OneID({ notify, lang }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div className="w-row">
                 <TextInput id="gf-ent-type" labelText={tr(lang, 'Entity type')} placeholder="e.g. Reticle 光罩" />
-                <Picker label={tr(lang, 'Subject domain')} items={['QMS', 'MES', 'EAP', 'ERP']} value="MES" onChange={() => {}} />
+                <LabeledSelect label={tr(lang, 'Subject domain')} size="md" items={['QMS', 'MES', 'EAP', 'ERP']} value="MES" onChange={() => {}} />
               </div>
               <TextInput id="gf-ent-def" labelText={tr(lang, 'Business definition')} placeholder={tr(lang, 'What this entity represents')} />
               <TextInput id="gf-ent-strat" labelText={tr(lang, 'Global ID strategy')} placeholder="ret_<plant>_<id>" />
@@ -308,9 +331,9 @@ function StdTable({ headers, rows, renderCell, addLabel, notify, lang }) {
         searchPlaceholder={tr(lang, 'Search standards')}
         actions={(
           <>
-            <Button kind="ghost" size="lg" renderIcon={iconFor('upload')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Import') })}>{tr(lang, 'Import')}</Button>
-            <Button kind="ghost" size="lg" renderIcon={iconFor('export')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Export') })}>{tr(lang, 'Export')}</Button>
-            <Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, addLabel) })}>{tr(lang, addLabel)}</Button>
+            <Button kind="ghost" renderIcon={iconFor('upload')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Import') })}>{tr(lang, 'Import')}</Button>
+            <Button kind="ghost" renderIcon={iconFor('export')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Export') })}>{tr(lang, 'Export')}</Button>
+            <Button kind="primary" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, addLabel) })}>{tr(lang, addLabel)}</Button>
           </>
         )}
         headers={headers} rows={rows} renderCell={renderCell} />
@@ -328,36 +351,28 @@ function ComplianceCheck({ notify, lang }) {
     ['Block', 'Non-compliant → no ETL', 'The codegen step refuses to emit pipelines until violations are fixed.'],
   ];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: '72vh' }}>
       <Callout icon="locked" title={tr(lang, 'Governance is computation, not paperwork')}>
         {tr(lang, 'These standards are enforced automatically at modeling time. A model that fails validation cannot generate ETL — the codegen validator blocks it.')}
       </Callout>
-      <div className="ds2-flow">
-        {steps.map((s, i) => (
-          <div key={s[0]} style={{ display: 'contents' }}>
-            <div className="ds2-flow__step">
-              <div className="n">{tr(lang, 'Step')} {i + 1}</div>
-              <div className="t">{tr(lang, s[1])}</div>
-              <div className="d">{tr(lang, s[2])}</div>
-            </div>
-            {i < steps.length - 1 && <div className="ds2-flow__arrow"><Icon name="arrow--right" size={18} /></div>}
-          </div>
+      <ProgressIndicator spaceEqually>
+        {steps.map((s) => (
+          <ProgressStep key={s[0]} complete label={tr(lang, s[1])} secondaryLabel={tr(lang, s[2])} />
         ))}
-      </div>
-      <div style={{ border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--wire-border)', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '.8125rem', fontWeight: 600 }}>{tr(lang, 'Run compliance check')}</span>
+      </ProgressIndicator>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)' }}>
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, padding: '12px 16px', borderBottom: '1px solid var(--wire-border)', flexWrap: 'wrap' }}>
           <div style={{ width: 280 }}>
-            <Picker size="sm" items={['gold.spc_capability_daily', 'gold.agg_yield_daily', 'silver.spc_measurements']} value={model} onChange={setModel} />
+            <LabeledSelect label={tr(lang, 'Run compliance check')} size="sm" items={['gold.spc_capability_daily', 'gold.agg_yield_daily', 'silver.spc_measurements']} value={model} onChange={setModel} />
           </div>
-          <Button kind="primary" size="sm" renderIcon={iconFor('play--outline')} onClick={run} disabled={phase === 'running'} style={{ marginLeft: 'auto' }}>
+          <Button kind="primary" renderIcon={iconFor('play--outline')} onClick={run} disabled={phase === 'running'} style={{ marginLeft: 'auto' }}>
             {phase === 'running' ? tr(lang, 'Scanning…') : tr(lang, 'Run validation')}
           </Button>
         </div>
-        {phase === 'idle' && <div style={{ padding: 16, fontSize: '.8125rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Pick a model and run to see standard violations.')}</div>}
-        {phase === 'running' && <div style={{ padding: 16 }}><InlineLoading description={tr(lang, 'Checking fields against active standards…')} /></div>}
+        {phase === 'idle' && <div style={{ flex: 1, padding: 16, fontSize: '.8125rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, 'Pick a model and run to see standard violations.')}</div>}
+        {phase === 'running' && <div style={{ flex: 1, padding: 16 }}><InlineLoading description={tr(lang, 'Checking fields against active standards…')} /></div>}
         {phase === 'done' && (
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ padding: '10px 16px', background: 'rgba(218,30,40,.06)', borderBottom: '1px solid var(--wire-border)', fontSize: '.8125rem', color: 'var(--cds-support-error)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icon name="error--filled" size={16} />{tr(lang, '2 violations — this model cannot generate ETL until fixed.')}
             </div>
@@ -385,14 +400,13 @@ function ChangeImpact({ notify, lang }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)' }}>{tr(lang, 'Change a standard to preview which existing models and tables must be remediated.')}</div>
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-        <div style={{ width: 320 }}>
-          <Picker label={tr(lang, 'Standard to change')} size="sm" items={['Field case — lower_snake_case', 'Defect code — D-2xx', 'Dimension prefix — dim_*']} value="Field case — lower_snake_case" onChange={() => {}} />
-        </div>
-        <Button kind="tertiary" size="md" renderIcon={iconFor('renew')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Impact analysis complete'), subtitle: tr(lang, '3 models require remediation.') })}>{tr(lang, 'Analyze impact')}</Button>
+      <div style={{ width: 320 }}>
+        <LabeledSelect label={tr(lang, 'Standard to change')} size="sm" items={['Field case — lower_snake_case', 'Defect code — D-2xx', 'Dimension prefix — dim_*']} value="Field case — lower_snake_case" onChange={() => {}} />
       </div>
-      <InlineNotification kind="warning" lowContrast hideCloseButton title={tr(lang, '3 models need remediation if this standard changes')} subtitle={tr(lang, 'Tightening the case rule to reject mixed-case would flag the following.')} />
-      <CarbonTable withToolbar={false}
+      <InlineNotification kind="warning" lowContrast hideCloseButton style={{ maxWidth: '100%', width: '100%' }} title={tr(lang, '3 models need remediation if this standard changes')} subtitle={tr(lang, 'Tightening the case rule to reject mixed-case would flag the following.')} />
+      <CarbonTable
+        searchPlaceholder={tr(lang, 'Search models')}
+        actions={<Button kind="tertiary" renderIcon={iconFor('renew')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Impact analysis complete'), subtitle: tr(lang, '3 models require remediation.') })}>{tr(lang, 'Analyze impact')}</Button>}
         headers={[
           { key: 'model', header: tr(lang, 'Model / table'), mono: true },
           { key: 'domain', header: tr(lang, 'Domain') },
@@ -407,7 +421,7 @@ function ChangeImpact({ notify, lang }) {
 
 function DataStandards({ notify, lang }) {
   const [domain, setDomain] = useState('All subject domains');
-  const toggleCell = (r) => <Toggle id={`gf-std-${r.id}-${r.name || r.field || r.term}`} size="sm" labelText="" hideLabel defaultToggled={r.on} />;
+  const toggleCell = (r) => <Toggle id={`gf-std-${r.id}-${r.name || r.field || r.term}`} size="sm" defaultToggled={r.on} aria-label={tr(lang, 'Enabled')} />;
   return (
     <div>
       <DomainFilter value={domain} onChange={setDomain} lang={lang} />
@@ -470,62 +484,41 @@ function DataStandards({ notify, lang }) {
 /* ============================== Bus Matrix ============================== */
 
 function BusMatrixView({ notify, lang }) {
-  const [cell, setCell] = useState(null);
-  const rowsByDomain = {};
-  BM_PROCESSES.forEach((p) => { (rowsByDomain[p.dom] = rowsByDomain[p.dom] || []).push(p); });
+  const headers = [
+    { key: 'sel', header: '' },
+    { key: 'proc', header: tr(lang, 'Business process') },
+    { key: 'dom', header: tr(lang, 'Domain') },
+    ...BM_DIMS.map((d, i) => ({ key: `d${i}`, header: tr(lang, d) })),
+  ];
+  const rows = BM_PROCESSES.map((p) => ({
+    id: p.name, proc: p.name, dom: p.dom,
+    ...Object.fromEntries(p.use.map((u, j) => [`d${j}`, u])),
+  }));
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Callout icon="grid" title={tr(lang, 'Conformed dimensions make cross-domain comparison possible')}>
         {tr(lang, 'Every business process references the same shared dimensions. Because QMS, MES, and EAP all join to the same Product and Date dimensions, their facts are directly comparable — that is the whole point of the bus matrix.')}
       </Callout>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <Button kind="tertiary" size="sm" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Add business process') })}>{tr(lang, 'Add process')}</Button>
-        <Button kind="tertiary" size="sm" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Add conformed dimension') })}>{tr(lang, 'Add dimension')}</Button>
-      </div>
-      <div style={{ overflow: 'auto', border: '1px solid var(--wire-border)' }}>
-        <table className="bm-matrix">
-          <thead>
-            <tr><th className="rowhead" style={{ minWidth: 200 }}>{tr(lang, 'Business process')}</th>{BM_DIMS.map((d) => <th key={d}>{tr(lang, d)}</th>)}</tr>
-          </thead>
-          <tbody>
-            {Object.entries(rowsByDomain).map(([dom, procs]) => (
-              <React.Fragment key={dom}>
-                <tr><td className="bm-domband" colSpan={BM_DIMS.length + 1}>{dom}</td></tr>
-                {procs.map((p) => (
-                  <tr key={p.name}>
-                    <td className="rowhead">{tr(lang, p.name)}<span className="dom">{p.dom}</span></td>
-                    {p.use.map((u, i) => (
-                      <td key={i} className="bm-cell" onClick={() => setCell({ p: p.name, d: BM_DIMS[i], on: u })}>
-                        {u ? <span className="mk"><Icon name="checkmark" size={13} /></span> : ''}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </React.Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {cell && (
-        <ComposedModal open size="sm" onClose={() => setCell(null)}>
-          <ModalHeader label={tr(lang, 'Bus matrix cell')} title={`${tr(lang, cell.p)} × ${tr(lang, cell.d)}`} />
-          <ModalBody>
-            <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)', marginBottom: 14 }}>
-              {tr(lang, 'Does this business process reference the')} <b>{tr(lang, cell.d)}</b> {tr(lang, 'conformed dimension?')}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Tag type={cell.on ? 'green' : 'cool-gray'} size="md">{tr(lang, cell.on ? 'Referenced' : 'Not referenced')}</Tag>
-              <span style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)' }}>
-                {tr(lang, 'Uses conformed dimension')} <span style={{ fontFamily: 'var(--cds-font-mono)' }}>dim_{cell.d.toLowerCase()}</span>
-              </span>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button kind="secondary" onClick={() => setCell(null)}>{tr(lang, 'Close')}</Button>
-            <Button kind="primary" renderIcon={iconFor('save')} onClick={() => { setCell(null); notify && notify({ kind: 'success', title: tr(lang, 'Updated'), subtitle: `${cell.p} × ${cell.d}` }); }}>{tr(lang, 'Save')}</Button>
-          </ModalFooter>
-        </ComposedModal>
-      )}
+      <CarbonTable
+        searchPlaceholder={tr(lang, 'Search processes')}
+        actions={(
+          <>
+            <Button kind="tertiary" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Add business process') })}>{tr(lang, 'Add process')}</Button>
+            <Button kind="tertiary" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'Add conformed dimension') })}>{tr(lang, 'Add dimension')}</Button>
+          </>
+        )}
+        headers={headers}
+        rows={rows}
+        renderCell={(r, k) => {
+          if (k === 'sel') return <Checkbox id={`bm-sel-${r.proc}`} labelText="" aria-label={tr(lang, 'Select row')} />;
+          if (k === 'proc') return <span style={{ fontWeight: 500 }}>{tr(lang, r.proc)}</span>;
+          if (k === 'dom') return <Tag type="cool-gray" size="sm">{r.dom}</Tag>;
+          if (/^d\d+$/.test(k)) {
+            const idx = Number(k.slice(1));
+            return <Checkbox id={`bm-${r.proc}-${idx}`} labelText="" aria-label={`${r.proc} × ${BM_DIMS[idx]}`} defaultChecked={!!r[k]} />;
+          }
+          return r[k];
+        }} />
     </div>
   );
 }
@@ -538,7 +531,7 @@ function ConformedDims({ notify, lang }) {
         subtitle={tr(lang, 'A domain cannot create its own duplicate dimension. Attempting to build a new “product” dimension is blocked and routed to the conformed Product dimension.')} />
       <CarbonTable
         searchPlaceholder={tr(lang, 'Search dimensions')}
-        actions={<Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'New conformed dimension') })}>{tr(lang, 'New dimension')}</Button>}
+        actions={<Button kind="primary" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'New conformed dimension') })}>{tr(lang, 'New dimension')}</Button>}
         headers={[
           { key: 'name', header: tr(lang, 'Dimension') }, { key: 'grain', header: tr(lang, 'Grain') },
           { key: 'scd', header: tr(lang, 'SCD type') }, { key: 'shared', header: tr(lang, 'Shared by') },
@@ -571,26 +564,33 @@ function ConsistencyCheck({ notify, lang }) {
     <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)' }}>{tr(lang, 'Scan domain models for duplicate or inconsistent dimensions that should be merged into a conformed dimension.')}</div>
       <div>
-        <Button kind="primary" size="md" renderIcon={iconFor('play--outline')} onClick={run} disabled={phase === 'running'}>
+        <Button kind="primary" renderIcon={iconFor('play--outline')} onClick={run} disabled={phase === 'running'}>
           {phase === 'running' ? tr(lang, 'Scanning…') : tr(lang, 'Run consistency scan')}
         </Button>
       </div>
       {phase === 'running' && <InlineLoading description={tr(lang, 'Scanning domain models…')} />}
       {phase === 'done' && (
         <>
-          <InlineNotification kind="warning" lowContrast hideCloseButton
+          <InlineNotification kind="warning" lowContrast hideCloseButton style={{ maxWidth: '100%', width: '100%' }}
             title={tr(lang, '2 inconsistencies found')}
             subtitle={tr(lang, 'Two domains built their own product dimension instead of referencing the conformed one.')} />
-          {BM_INCONSISTENCIES.map((c, i) => (
-            <div key={i} style={{ border: '1px solid var(--wire-border)', borderLeft: '3px solid var(--cds-support-warning)', background: 'var(--cds-layer-02)', padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Icon name="warning--alt" size={18} style={{ color: 'var(--cds-support-warning)', flex: '0 0 18px' }} />
-              <div style={{ flex: 1, minWidth: 240 }}>
-                <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-primary)', fontWeight: 500 }}>{tr(lang, c.issue)}</div>
-                <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 2, fontFamily: 'var(--cds-font-mono)' }}>{c.a} ↔ {c.b}</div>
-              </div>
-              <Button kind="tertiary" size="sm" renderIcon={iconFor('interactions')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Merge proposed'), subtitle: tr(lang, c.act) })}>{tr(lang, c.act)}</Button>
-            </div>
-          ))}
+          <Accordion>
+            {BM_INCONSISTENCIES.map((c, i) => (
+              <AccordionItem key={i} title={(
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                  <Icon name="warning--alt" size={16} style={{ color: 'var(--cds-support-warning)' }} />
+                  {tr(lang, c.issue)}
+                </span>
+              )}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', fontFamily: 'var(--cds-font-mono)' }}>{c.a} ↔ {c.b}</div>
+                  <div>
+                    <Button kind="tertiary" size="sm" renderIcon={iconFor('interactions')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Merge proposed'), subtitle: tr(lang, c.act) })}>{tr(lang, c.act)}</Button>
+                  </div>
+                </div>
+              </AccordionItem>
+            ))}
+          </Accordion>
         </>
       )}
     </div>
@@ -726,14 +726,14 @@ function ArchiveWizard({ onClose, onDone, notify, lang }) {
           )}
           {step === 1 && (
             <>
-              <Picker label={tr(lang, 'Retention period')} items={['30 days', '90 days', '180 days', '1 year']} value="90 days" onChange={() => {}} />
-              <Picker label={tr(lang, 'After retention')} items={['Permanently delete', 'Move to cold storage']} value="Move to cold storage" onChange={() => {}} />
+              <LabeledSelect label={tr(lang, 'Retention period')} size="md" items={['30 days', '90 days', '180 days', '1 year']} value="90 days" onChange={() => {}} />
+              <LabeledSelect label={tr(lang, 'After retention')} size="md" items={['Permanently delete', 'Move to cold storage']} value="Move to cold storage" onChange={() => {}} />
               <InlineNotification kind="warning" lowContrast hideCloseButton title={tr(lang, 'Reversible during retention')} subtitle={tr(lang, 'Archived assets can be restored until the retention window ends.')} />
             </>
           )}
           {step === 2 && (
             <>
-              <Picker label={tr(lang, 'Approver')} items={['Data Governance Lead', 'Platform Owner']} value="Data Governance Lead" onChange={() => {}} />
+              <LabeledSelect label={tr(lang, 'Approver')} size="md" items={['Data Governance Lead', 'Platform Owner']} value="Data Governance Lead" onChange={() => {}} />
               <TextInput id="gf-arch-just" labelText={tr(lang, 'Justification')} defaultValue="No downstream, 90+ days idle — cost reduction." />
             </>
           )}
@@ -760,7 +760,7 @@ function InventoryList({ onOpen, onArchive, notify, lang }) {
     <CarbonTable
       searchPlaceholder={tr(lang, 'Search assets')}
       filters={[{ items: filterItems.map((f) => tr(lang, f)), value: tr(lang, filter), onChange: (v) => setFilter(filterItems[filterItems.map((f) => tr(lang, f)).indexOf(v)] || 'All') }]}
-      actions={<Button kind="tertiary" size="lg" renderIcon={iconFor('folder')} onClick={onArchive}>{tr(lang, 'Bulk archive')}</Button>}
+      actions={<Button kind="tertiary" renderIcon={iconFor('folder')} onClick={onArchive}>{tr(lang, 'Bulk archive')}</Button>}
       headers={[
         { key: 'name', header: tr(lang, 'Asset'), mono: true },
         { key: 'dom', header: tr(lang, 'Domain') },
@@ -812,21 +812,10 @@ function ROIReport({ lang }) {
       </div>
       <div style={{ border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)', padding: 18 }}>
         <div style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--cds-text-secondary)', marginBottom: 14 }}>{tr(lang, 'VALUE VS COST BY DOMAIN')}</div>
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: 20, height: 160 }}>
-          {AV_ROI_DOMAINS.map((d) => (
-            <div key={d[0]} style={{ flex: 1, textAlign: 'center' }}>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', justifyContent: 'center', height: 130 }}>
-                <div style={{ width: 18, height: d[1] + '%', background: 'var(--cds-support-success)' }} />
-                <div style={{ width: 18, height: d[2] + '%', background: 'var(--cds-support-warning)' }} />
-              </div>
-              <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 6 }}>{d[0]}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: 16, marginTop: 12, fontSize: '.75rem' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, background: 'var(--cds-support-success)' }} />{tr(lang, 'Value')}</span>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}><span style={{ width: 10, height: 10, background: 'var(--cds-support-warning)' }} />{tr(lang, 'Cost')}</span>
-        </div>
+        <ChartByType type="grouped" height={240} data={AV_ROI_DOMAINS.flatMap((d) => [
+          { group: tr(lang, 'Value'), key: d[0], value: d[1] },
+          { group: tr(lang, 'Cost'), key: d[0], value: d[2] },
+        ])} />
       </div>
     </div>
   );
@@ -896,8 +885,8 @@ function SensitiveDetection({ notify, lang }) {
           if (k === 'act') {
             return r.status === 'pending' ? (
               <span style={{ display: 'flex', gap: 4 }}>
-                <Button kind="tertiary" size="sm" renderIcon={iconFor('checkmark')} onClick={(e) => { e.stopPropagation(); set(r.id, 'confirmed'); notify && notify({ kind: 'success', title: tr(lang, 'Classification applied'), subtitle: `${r.field} → ${r.level} · ${tr(lang, 'masking enabled.')}` }); }}>{tr(lang, 'Approve')}</Button>
-                <Button kind="ghost" size="sm" onClick={(e) => { e.stopPropagation(); set(r.id, 'ignored'); }}>{tr(lang, 'Ignore')}</Button>
+                <Button kind="ghost" size="sm" hasIconOnly iconDescription={tr(lang, 'Approve')} tooltipPosition="left" renderIcon={iconFor('checkmark')} onClick={(e) => { e.stopPropagation(); set(r.id, 'confirmed'); notify && notify({ kind: 'success', title: tr(lang, 'Classification applied'), subtitle: `${r.field} → ${r.level} · ${tr(lang, 'masking enabled.')}` }); }} />
+                <Button kind="ghost" size="sm" hasIconOnly iconDescription={tr(lang, 'Ignore')} tooltipPosition="left" renderIcon={iconFor('close')} onClick={(e) => { e.stopPropagation(); set(r.id, 'ignored'); }} />
               </span>
             ) : <span style={{ fontSize: '.75rem', color: 'var(--cds-text-placeholder)' }}>{tr(lang, r.status === 'confirmed' ? '✓ masking active' : 'dismissed')}</span>;
           }
@@ -907,42 +896,48 @@ function SensitiveDetection({ notify, lang }) {
   );
 }
 
+const SG_DIST_COLOR = { red: '#da1e28', purple: '#8a3ffc', blue: '#0f62fe', green: '#24a148' };
+
 function AutoClassify({ notify, lang }) {
   return (
-    <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20 }}>
-      <div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', marginBottom: 4 }}>
-          <span style={{ fontSize: '.8125rem', fontWeight: 600, flex: 1 }}>{tr(lang, 'AI batch classification suggestions')}</span>
-          <Button kind="primary" size="sm" renderIcon={iconFor('checkmark')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Batch confirmed'), subtitle: tr(lang, '4 classifications applied.') })}>{tr(lang, 'Confirm all')}</Button>
-        </div>
-        <CarbonTable withToolbar={false}
-          headers={[
-            { key: 'sel', header: '' },
-            { key: 'asset', header: tr(lang, 'Asset'), mono: true },
-            { key: 'cls', header: tr(lang, 'Suggested class') },
-            { key: 'level', header: tr(lang, 'Level') },
-            { key: 'conf', header: tr(lang, 'Confidence') },
-          ]}
-          rows={SG_CLASSIFY}
-          renderCell={(r, k) => {
-            if (k === 'sel') return <Checkbox id={`gf-cls-${r.id}`} labelText="" defaultChecked />;
-            if (k === 'level') return <Tag type={SG_LEVEL_TAG[r.level]} size="sm">{tr(lang, r.level)}</Tag>;
-            if (k === 'conf') return <Confidence value={r.conf} />;
-            return r[k];
-          }} />
+    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: `repeat(${SG_CLS_DIST.length}, 1fr)`, gap: 1, background: 'var(--wire-border)', border: '1px solid var(--wire-border)' }}>
+        {SG_CLS_DIST.map((d) => {
+          const label = tr(lang, d[0]);
+          return (
+            <div key={d[0]} style={{ background: 'var(--cds-layer-02)', padding: '16px 18px' }}>
+              <MeterChart
+                data={[{ group: label, value: d[2] }]}
+                options={{
+                  title: label,
+                  height: '76px',
+                  meter: { peak: 100, height: 8 },
+                  color: { scale: { [label]: SG_DIST_COLOR[d[1]] || '#0f62fe' } },
+                  toolbar: { enabled: false },
+                  legend: { enabled: false },
+                  theme: 'white',
+                }} />
+            </div>
+          );
+        })}
       </div>
-      <div style={{ border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)', padding: 18, alignSelf: 'start' }}>
-        <div style={{ fontSize: '.75rem', fontWeight: 600, color: 'var(--cds-text-secondary)', marginBottom: 14 }}>{tr(lang, 'CLASSIFICATION DISTRIBUTION')}</div>
-        {SG_CLS_DIST.map((d) => (
-          <div key={d[0]} style={{ display: 'grid', gridTemplateColumns: '90px 1fr 32px', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-            <Tag type={d[1]} size="sm">{tr(lang, d[0])}</Tag>
-            <span style={{ height: 8, background: 'var(--cds-layer-01)', position: 'relative' }}>
-              <span style={{ position: 'absolute', inset: '0 auto 0 0', width: d[2] + '%', background: `var(--cds-${d[1] === 'red' ? 'support-error' : d[1] === 'purple' ? 'purple-60' : d[1] === 'blue' ? 'blue-60' : 'support-success'})` }} />
-            </span>
-            <span style={{ fontFamily: 'var(--cds-font-mono)', fontSize: '.75rem', textAlign: 'right' }}>{d[2]}%</span>
-          </div>
-        ))}
-      </div>
+      <CarbonTable
+        searchPlaceholder={tr(lang, 'Search assets')}
+        actions={<Button kind="primary" renderIcon={iconFor('checkmark')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Batch confirmed'), subtitle: tr(lang, '4 classifications applied.') })}>{tr(lang, 'Confirm all')}</Button>}
+        headers={[
+          { key: 'sel', header: '' },
+          { key: 'asset', header: tr(lang, 'Asset'), mono: true },
+          { key: 'cls', header: tr(lang, 'Suggested class') },
+          { key: 'level', header: tr(lang, 'Level') },
+          { key: 'conf', header: tr(lang, 'Confidence') },
+        ]}
+        rows={SG_CLASSIFY}
+        renderCell={(r, k) => {
+          if (k === 'sel') return <Checkbox id={`gf-cls-${r.id}`} labelText="" aria-label={tr(lang, 'Select row')} defaultChecked />;
+          if (k === 'level') return <Tag type={SG_LEVEL_TAG[r.level]} size="sm">{tr(lang, r.level)}</Tag>;
+          if (k === 'conf') return <Confidence value={r.conf} />;
+          return r[k];
+        }} />
     </div>
   );
 }
@@ -964,7 +959,7 @@ function SemanticAutofill({ notify, lang }) {
             <div><div style={{ fontSize: '.6875rem', fontWeight: 600, color: 'var(--cds-text-secondary)' }}>{tr(lang, 'AI-suggested nl_description')}</div><div className="sg-diff"><span className="ai">{s.nl}</span></div></div>
             <div><div style={{ fontSize: '.6875rem', fontWeight: 600, color: 'var(--cds-text-secondary)' }}>{tr(lang, 'AI-suggested domain_knowledge')}</div><div className="sg-diff"><span className="ai">{s.dk}</span></div></div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              <Button kind="primary" size="sm" renderIcon={iconFor('checkmark')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Accepted into semantic layer'), subtitle: s.field })}>{tr(lang, 'Accept to AI Semantic')}</Button>
+              <Button kind="primary" renderIcon={iconFor('checkmark')} onClick={() => notify && notify({ kind: 'success', title: tr(lang, 'Accepted into semantic layer'), subtitle: s.field })}>{tr(lang, 'Accept to AI Semantic')}</Button>
               <Button kind="tertiary" size="sm" renderIcon={iconFor('edit')}>{tr(lang, 'Edit first')}</Button>
               <Button kind="ghost" size="sm">{tr(lang, 'Reject')}</Button>
             </div>
@@ -978,23 +973,31 @@ function SemanticAutofill({ notify, lang }) {
 function RuleEngine({ notify, lang }) {
   return (
     <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', alignItems: 'center' }}>
-        <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)', flex: 1 }}>{tr(lang, 'Define automated governance rules — AI continuously patrols and acts on matches.')}</div>
-        <Button kind="primary" size="md" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'New governance rule') })}>{tr(lang, 'New rule')}</Button>
-      </div>
-      {SG_RULES.map((r) => (
-        <div key={r.id} style={{ border: '1px solid var(--wire-border)', background: 'var(--cds-layer-02)', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-          <Icon name="watson" size={18} style={{ color: 'var(--cds-blue-60)', flex: '0 0 18px' }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: '.875rem', fontWeight: 600, color: 'var(--cds-text-primary)' }}>{tr(lang, r.name)}</div>
-            <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 2 }}>
-              {/* When/then stay English in both locales — rule-DSL keywords */}
-              <b>When</b> {tr(lang, r.when)} <b>→ then</b> {tr(lang, r.then)}
-            </div>
-          </div>
-          <StatusDot kind={r.on ? 'success' : 'gray'}>{tr(lang, r.on ? 'Active' : 'Off')}</StatusDot>
-        </div>
-      ))}
+      <div style={{ fontSize: '.8125rem', color: 'var(--cds-text-secondary)' }}>{tr(lang, 'Define automated governance rules — AI continuously patrols and acts on matches.')}</div>
+      <CarbonTable
+        searchPlaceholder={tr(lang, 'Search rules')}
+        actions={<Button kind="primary" renderIcon={iconFor('add')} onClick={() => notify && notify({ kind: 'info', title: tr(lang, 'New governance rule') })}>{tr(lang, 'New rule')}</Button>}
+        headers={[
+          { key: 'name', header: tr(lang, 'Rule') },
+          { key: 'when', header: 'When' },
+          { key: 'then', header: 'Then' },
+          { key: 'status', header: tr(lang, 'Status') },
+        ]}
+        rows={SG_RULES}
+        renderCell={(r, k) => {
+          if (k === 'name') {
+            return (
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600 }}>
+                <Icon name="watson" size={16} style={{ color: 'var(--cds-blue-60)' }} />{tr(lang, r.name)}
+              </span>
+            );
+          }
+          // When/then values stay English in both locales — rule-DSL keywords
+          if (k === 'when') return tr(lang, r.when);
+          if (k === 'then') return tr(lang, r.then);
+          if (k === 'status') return <StatusDot kind={r.on ? 'success' : 'gray'}>{tr(lang, r.on ? 'Active' : 'Off')}</StatusDot>;
+          return r[k];
+        }} />
     </div>
   );
 }

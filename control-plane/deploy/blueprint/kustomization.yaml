@@ -1,0 +1,28 @@
+# Lakehouse blueprint overlay (§19.5): the stock manifests parameterized by
+# factory-params.env. One overlay per site; only the env file changes.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../k8s/namespace.yaml
+  - ../k8s/deployment.yaml
+  - ../k8s/service.yaml
+  - ../k8s/ingress.yaml
+  - ../k8s/airflow-dags-pvc.yaml
+
+configMapGenerator:
+  - name: factory-params
+    envs:
+      - factory-params.env
+
+patches:
+  # Inject the deployment-role identity + federation wiring into the BFF.
+  - target:
+      kind: Deployment
+      name: control-plane
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/envFrom
+        value:
+          - configMapRef:
+              name: factory-params

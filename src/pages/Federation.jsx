@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Button, Tag, TextInput, InlineNotification,
   Tabs, TabList, Tab, TabPanels, TabPanel,
@@ -16,25 +16,26 @@ import {
   FED_COMMANDS, FED_CMD_KIND, FED_NEW_STEPS,
 } from '../data/mockData.js';
 import { CHORO_DATA, CHORO_OPTIONS } from '../data/choropleth.js';
+import { getFedLakehouses, getFedLakehouse, getFedRollups, dispatchFedCommand } from '../data/api.js';
 
 /* Federation (§ multi-plant control plane): a control tower over every plant's
    autonomous lakehouse. Each plant runs independently — an offline plant never
    takes down the others; a dispatched command is an intent the plant may refuse. */
 
 /* ============================ CONTROL TOWER ============================ */
-function ControlTower({ onOpen, lang }) {
-  const online = FED_PLANTS.filter((p) => p.state !== 'offline').length;
-  const alerts = FED_PLANTS.filter((p) => p.state === 'alert').length;
+function ControlTower({ plants, onOpen, lang }) {
+  const online = plants.filter((p) => p.state !== 'offline').length;
+  const alerts = plants.filter((p) => p.state === 'alert').length;
   const kpis = [
-    { k: 'Plants online', v: `${online} / ${FED_PLANTS.length}`, icon: 'checkmark--filled', color: 'var(--cds-support-success)' },
+    { k: 'Plants online', v: `${online} / ${plants.length}`, icon: 'checkmark--filled', color: 'var(--cds-support-success)' },
     { k: 'Total pipelines', v: '61', icon: 'data--base' },
     { k: 'Plants with alerts', v: String(alerts), icon: 'warning--filled', color: 'var(--cds-support-warning)' },
     { k: 'Avg sync latency', v: '270ms', icon: 'time' },
   ];
   // Cross-plant Cpk as a Carbon bar chart. Offline plants have no Cpk (drawn as 0/grey);
   // colour flags plants below the 1.33 capability target.
-  const cpkData = FED_PLANTS.map((p) => ({ group: p.name, value: p.cpk == null ? 0 : p.cpk }));
-  const cpkColorScale = Object.fromEntries(FED_PLANTS.map((p) => [p.name, p.cpk == null ? '#c6c6c6' : p.cpk < 1.33 ? '#f1c21b' : '#0f62fe']));
+  const cpkData = plants.map((p) => ({ group: p.name, value: p.cpk == null ? 0 : p.cpk }));
+  const cpkColorScale = Object.fromEntries(plants.map((p) => [p.name, p.cpk == null ? '#c6c6c6' : p.cpk < 1.33 ? '#f1c21b' : '#0f62fe']));
   const cpkOptions = {
     axes: {
       left: { mapsTo: 'value', title: 'Cpk', includeZero: true,
@@ -60,7 +61,7 @@ function ControlTower({ onOpen, lang }) {
       </div>
 
       <div className="fd-grid">
-        {FED_PLANTS.map((p) => (
+        {plants.map((p) => (
           <button key={p.id} className={`fd-plant ${p.state}`} onClick={() => onOpen(p)} style={{ textAlign: 'left', font: 'inherit', padding: 0 }}>
             <div className="fd-plant__h">
               <Icon name="data--base" size={20} style={{ color: 'var(--cds-icon-secondary)' }} />
@@ -104,9 +105,28 @@ function ControlTower({ onOpen, lang }) {
 /* ============================ DISPATCH COMMAND ============================ */
 function DispatchModal({ plant, onClose, onDone, notify, lang }) {
   const [type, setType] = useState('pipeline');
-  const dispatch = () => {
+  const [pipeline, setPipeline] = useState('spc_capability_daily');
+  const [cfgKV, setCfgKV] = useState('sync.interval = 5m');
+  const [bp, setBp] = useState('bp-2026.06');
+  // Real dispatch: queues a tower.command the plant's receiver pulls (§19.4).
+  // Mock-preview plants (no backend row) keep the demo notification.
+  const dispatch = async () => {
+    const label = `${FED_CMD_TYPES.find((c) => c.id === type).nm} → ${plant ? plant.name : 'plant'}`;
+    if (plant && plant.real) {
+      const body = type === 'pipeline'
+        ? { type: 'trigger_pipeline', payload: { pipeline_id: pipeline } }
+        : type === 'config'
+          ? { type: 'push_config', payload: { config: cfgKV } }
+          : { type: 'apply_blueprint', payload: { version: bp } };
+      try {
+        await dispatchFedCommand(plant.id, body);
+      } catch (err) {
+        notify && notify({ kind: 'error', title: 'Dispatch failed', subtitle: err.detail || err.message });
+        return;
+      }
+    }
     onDone();
-    notify && notify({ kind: 'success', title: tr(lang, 'Command queued'), subtitle: `${FED_CMD_TYPES.find((c) => c.id === type).nm} → ${plant ? plant.name : 'plant'}` });
+    notify && notify({ kind: 'success', title: tr(lang, 'Command queued'), subtitle: label });
   };
   return (
     <ComposedModal open size="sm" onClose={onClose}>
@@ -124,9 +144,9 @@ function DispatchModal({ plant, onClose, onDone, notify, lang }) {
               ))}
             </div>
           </div>
-          {type === 'pipeline' && <Picker label="Pipeline" items={['spc_capability_daily', 'agg_yield_daily', 'qms_cdc']} value="spc_capability_daily" onChange={() => {}} />}
-          {type === 'config' && <TextInput id="fd-cfg" labelText="Config key = value" defaultValue="sync.interval = 5m" />}
-          {type === 'blueprint' && <Picker label="Blueprint version" items={['bp-2026.06', 'bp-2026.05']} value="bp-2026.06" onChange={() => {}} />}
+          {type === 'pipeline' && <Picker label="Pipeline" items={['spc_capability_daily', 'agg_yield_daily', 'qms_cdc']} value={pipeline} onChange={setPipeline} />}
+          {type === 'config' && <TextInput id="fd-cfg" labelText="Config key = value" value={cfgKV} onChange={(e) => setCfgKV(e.target.value)} />}
+          {type === 'blueprint' && <Picker label="Blueprint version" items={['bp-2026.06', 'bp-2026.05']} value={bp} onChange={setBp} />}
           <InlineNotification kind="info" lowContrast hideCloseButton title="A command is an intent, not a guarantee"
             subtitle="The plant control plane executes it and retains the right to refuse. Track status in the plant’s command queue." />
         </div>
@@ -196,6 +216,21 @@ function NewLakehouse({ onClose, onDone, notify, lang }) {
 
 /* ============================ LAKEHOUSE DETAIL ============================ */
 function LakehouseDetail({ plant, onBack, onDispatch, notify, lang }) {
+  // Real command queue for registered sites; mock preview otherwise. Status
+  // maps to the display vocabulary: done→executed, rejected→refused.
+  const [commands, setCommands] = useState(plant.real ? [] : FED_COMMANDS.map((c, i) => ({ id: i, ...c })));
+  useEffect(() => {
+    if (!plant.real) return;
+    getFedLakehouse(plant.id).then((d) => {
+      const st = { done: 'executed', rejected: 'refused' };
+      setCommands((d.commands || []).map((c) => ({
+        id: c.id,
+        ty: `${c.type}${c.result ? ' · ' + c.result : ''}`,
+        st: st[c.status] || c.status,
+        when: c.created_at ? new Date(c.created_at).toLocaleString() : '—',
+      })));
+    }).catch(() => {});
+  }, [plant]); // eslint-disable-line react-hooks/exhaustive-deps
   const pipeRows = plant.state === 'offline'
     ? [{ name: 'spc_capability_daily', status: 'unknown', fresh: '—', last: '12 min ago' }]
     : [
@@ -257,11 +292,11 @@ function LakehouseDetail({ plant, onBack, onDispatch, notify, lang }) {
                   { key: 'st', header: tr(lang, 'Status') },
                   { key: 'when', header: tr(lang, 'When') },
                 ]}
-                rows={FED_COMMANDS.map((c, i) => ({ id: i, ...c }))}
+                rows={commands}
                 searchPlaceholder={tr(lang, 'Search commands')}
                 actions={<Button kind="primary" size="lg" renderIcon={iconFor('send')} onClick={onDispatch}>{tr(lang, 'New command')}</Button>}
                 renderCell={(r, k) => k === 'st'
-                  ? <StatusDot kind={FED_CMD_KIND[r.st]}>{r.st}</StatusDot>
+                  ? <StatusDot kind={FED_CMD_KIND[r.st] || 'error'}>{r.st}</StatusDot>
                   : r[k]} />
               <div style={{ fontSize: '.75rem', color: 'var(--cds-text-secondary)', marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}><Icon name="information" size={14} />A refused command is the plant exercising its veto — the control plane stays authoritative locally.</div>
             </div>
@@ -291,7 +326,7 @@ function LakehouseDetail({ plant, onBack, onDispatch, notify, lang }) {
 }
 
 /* ============================ LAKEHOUSES LIST ============================ */
-function LakehousesList({ onOpen, onNew, onDispatch, notify, lang }) {
+function LakehousesList({ plants, onOpen, onNew, onDispatch, notify, lang }) {
   const headers = [
     { key: 'id', header: tr(lang, 'Plant ID'), mono: true },
     { key: 'name', header: tr(lang, 'Name') },
@@ -305,7 +340,7 @@ function LakehousesList({ onOpen, onNew, onDispatch, notify, lang }) {
   return (
     <CarbonTable
       headers={headers}
-      rows={FED_PLANTS}
+      rows={plants}
       withPagination
       searchPlaceholder={tr(lang, 'Search lakehouses')}
       onRowClick={onOpen}
@@ -333,11 +368,40 @@ const TITLES = {
   lakehouses: ['Lakehouses', 'Each plant’s lakehouse, its commands, and federated drill-down.'],
 };
 
+// mapSite shapes a backend tower.lakehouse row into the plant card model.
+// Backend state 'stale' renders as the amber 'alert' state (report overdue).
+function mapSite(s, rollups) {
+  const byMetric = (m) => {
+    const hit = rollups.find((r) => r.factory_id === s.id && r.metric === m);
+    return hit ? hit.value : null;
+  };
+  const health = s.health || {};
+  return {
+    id: s.id, name: s.name || s.id, region: s.region || '—',
+    state: s.state === 'stale' ? 'alert' : s.state,
+    version: s.version || '—', blueprint: s.blueprint || '—',
+    pipes: health.components_total != null ? `${health.components_up} / ${health.components_total}` : '—',
+    fresh: '—', sync: '—', report: s.report || 'never',
+    cpk: byMetric('cpk'), yield: byMetric('yield'),
+    real: true,
+  };
+}
+
 export default function Federation({ notify, lang }) {
   const [sub, setSub] = useState('tower');
   const [plant, setPlant] = useState(null);
   const [dispatch, setDispatch] = useState(null); // null | plant
   const [newLh, setNewLh] = useState(false);
+  // Live fleet from the tower registry; the mock fleet remains the preview when
+  // no site has reported yet (fresh HQ) or the backend is unreachable.
+  const [plants, setPlants] = useState(FED_PLANTS);
+  useEffect(() => {
+    Promise.all([getFedLakehouses(), getFedRollups().catch(() => [])])
+      .then(([sites, rollups]) => {
+        if (Array.isArray(sites) && sites.length > 0) setPlants(sites.map((s) => mapSite(s, rollups)));
+      })
+      .catch(() => { /* factory role or backend absent — keep the mock preview */ });
+  }, []);
 
   if (sub === 'lakehouses' && plant) {
     return (
@@ -357,8 +421,8 @@ export default function Federation({ notify, lang }) {
     <div className="w-page">
       <PageHeader crumb={[tr(lang, 'Federation'), tr(lang, t)]} title={tr(lang, t)} sub={tr(lang, s)} />
       <SubSwitch items={trList(lang, FED_SUBS)} value={sub} onChange={(v) => { setSub(v); setPlant(null); }} />
-      {sub === 'tower' && <ControlTower onOpen={(p) => { setSub('lakehouses'); setPlant(p); }} lang={lang} />}
-      {sub === 'lakehouses' && <LakehousesList onOpen={setPlant} onNew={() => setNewLh(true)} onDispatch={(p) => setDispatch(p)} notify={notify} lang={lang} />}
+      {sub === 'tower' && <ControlTower plants={plants} onOpen={(p) => { setSub('lakehouses'); setPlant(p); }} lang={lang} />}
+      {sub === 'lakehouses' && <LakehousesList plants={plants} onOpen={setPlant} onNew={() => setNewLh(true)} onDispatch={(p) => setDispatch(p)} notify={notify} lang={lang} />}
       {dispatch && <DispatchModal plant={dispatch} onClose={() => setDispatch(null)} onDone={() => setDispatch(null)} notify={notify} lang={lang} />}
       {newLh && <NewLakehouse onClose={() => setNewLh(false)} onDone={() => setNewLh(false)} notify={notify} lang={lang} />}
     </div>

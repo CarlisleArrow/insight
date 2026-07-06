@@ -139,7 +139,7 @@ export function CarbonTable({
                   )}
                   {filters && filters.map((f, i) => (
                     <div key={i} style={{ minWidth: 176 }}>
-                      <Picker items={f.items} value={f.value} onChange={f.onChange} />
+                      <Picker items={f.items} value={f.value} onChange={f.onChange}  />
                     </div>
                   ))}
                   {actions}

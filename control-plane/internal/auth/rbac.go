@@ -17,6 +17,9 @@ const (
 	PermPoliciesWrite  Permission = "policies:write"
 	PermAnalyticsWrite Permission = "analytics:write" // dashboards, report subscriptions
 	PermModelingWrite  Permission = "modeling:write"  // business metrics, semantic models
+	PermAiRead         Permission = "ai:read"         // AI models/semantic read, analyze/assist, agent runs (§20/§21)
+	PermAiWrite        Permission = "ai:write"        // AI model/semantic CRUD, agent flow CRUD + run
+	PermFederationAdmin Permission = "federation:admin" // group control tower (§19, hybrid only)
 	PermAdmin          Permission = "admin:all"
 )
 
@@ -33,14 +36,15 @@ var groupPermissions = map[string][]Permission{
 	GroupPlatformAdmin: {
 		PermQueryRun, PermDatasetsRead, PermPipelinesRead, PermPipelinesWrite,
 		PermCatalogRead, PermPoliciesRead, PermPoliciesWrite,
-		PermAnalyticsWrite, PermModelingWrite, PermAdmin,
+		PermAnalyticsWrite, PermModelingWrite,
+		PermAiRead, PermAiWrite, PermFederationAdmin, PermAdmin,
 	},
 	GroupAnalyst: {
 		PermQueryRun, PermDatasetsRead, PermPipelinesRead, PermCatalogRead, PermPoliciesRead,
-		PermAnalyticsWrite, PermModelingWrite,
+		PermAnalyticsWrite, PermModelingWrite, PermAiRead, PermAiWrite,
 	},
 	GroupViewer: {
-		PermDatasetsRead, PermCatalogRead,
+		PermDatasetsRead, PermCatalogRead, PermAiRead,
 	},
 }
 
@@ -91,6 +95,7 @@ func AllPermissions() []Permission {
 	return []Permission{
 		PermQueryRun, PermDatasetsRead, PermPipelinesRead, PermPipelinesWrite,
 		PermCatalogRead, PermPoliciesRead, PermPoliciesWrite,
-		PermAnalyticsWrite, PermModelingWrite, PermAdmin,
+		PermAnalyticsWrite, PermModelingWrite,
+		PermAiRead, PermAiWrite, PermFederationAdmin, PermAdmin,
 	}
 }

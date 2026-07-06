@@ -29,6 +29,22 @@ dev:
 auth:
   default_role: "viewer"
   bootstrap_admins: []
+  # Keycloak groups whose members get factory scope "all" (group admins, §22.7).
+  group_admin_groups: []
+
+# Deployment role of THIS instance (§22.2). role: factory | hybrid.
+# Override via INSIGHT_ROLE / INSIGHT_FACTORY_ID.
+insight:
+  role: "hybrid"
+  factory_id: ""
+  version: ""
+
+# Federation (§19). A factory reports up to the group tower; empty on hybrid.
+# Override tower_endpoint via CP_FEDERATION_TOWER_ENDPOINT.
+federation:
+  tower_endpoint: ""
+  report_every_sec: 60
+  pull_every_sec: 30
 
 # Keycloak / OIDC (§2.1). Issuer realm = Unified_SSO, client = insight.
 # client_secret is injected via env CP_KEYCLOAK_CLIENT_SECRET (K8s Secret cp-keycloak).

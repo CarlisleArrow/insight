@@ -60,6 +60,51 @@ func (h *Handlers) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// MeContext — GET /api/me/context. Deployment role + capability flags so the
+// SPA renders by role (§22.8) and never shows empty pages: a factory instance
+// hides the Federation surface entirely; hybrid (HQ) exposes it.
+func (h *Handlers) MeContext(w http.ResponseWriter, r *http.Request) {
+	claims, _ := auth.FromContext(r.Context())
+	name, email := "", ""
+	roles := []string{}
+	scope := ""
+	if claims != nil {
+		name = claims.PreferredUsername
+		email = claims.Email
+		roles = claims.Groups
+	}
+	if az, ok := auth.AuthzFromContext(r.Context()); ok && az != nil {
+		if len(az.Roles) > 0 {
+			roles = az.Roles
+		}
+		scope = az.FactoryScope
+	}
+
+	role, factoryID, version := "factory", "", ""
+	if h.Cfg != nil {
+		role = h.Cfg.Insight.Role
+		factoryID = h.Cfg.Insight.FactoryID
+		version = h.Cfg.Insight.Version
+	}
+	if scope == "" {
+		scope = factoryID
+	}
+	hybrid := role == "hybrid"
+	writeJSON(w, http.StatusOK, map[string]any{
+		"user": map[string]any{"name": name, "email": email, "roles": roles},
+		"deployment": map[string]any{
+			"role": role, "factory_id": factoryID, "version": version,
+		},
+		"factory_scope": scope,
+		"capabilities": map[string]bool{
+			"data_ops":   true, // factory + hybrid both have local data
+			"ai":         true,
+			"federation": hybrid, // Federation UI only on hybrid
+			"tower":      hybrid,
+		},
+	})
+}
+
 // MyPermissions — GET /api/me/permissions. Effective data-access permissions
 // derived from the acl_* policies that apply to the caller's groups, grouped by
 // table (Profile "My permissions"). An asset with no column policy + no row

@@ -124,18 +124,30 @@ type RBAC struct {
 	cfg             *ConfigService
 	bootstrapAdmins map[string]bool // lowercased username/email
 	staticDefault   string          // fallback default role when config unset
+	groupAdmins     map[string]bool // lowercased groups granted factory scope "all" (§22.7①)
+	factoryID       string          // this instance's site id — the default scope
 }
 
 // NewRBAC builds the resolver. bootstrapAdmins and staticDefaultRole come from
 // config.Auth; the system_config `auth.default_role` overrides staticDefault.
-func NewRBAC(store *pg.Store, cfg *ConfigService, bootstrapAdmins []string, staticDefaultRole string) *RBAC {
+// groupAdminGroups members get FactoryScope "all"; everyone else is scoped to
+// factoryID (this instance's own site).
+func NewRBAC(store *pg.Store, cfg *ConfigService, bootstrapAdmins []string, staticDefaultRole string,
+	groupAdminGroups []string, factoryID string) *RBAC {
 	set := map[string]bool{}
 	for _, a := range bootstrapAdmins {
 		if a = strings.TrimSpace(strings.ToLower(a)); a != "" {
 			set[a] = true
 		}
 	}
-	return &RBAC{store: store, cfg: cfg, bootstrapAdmins: set, staticDefault: staticDefaultRole}
+	ga := map[string]bool{}
+	for _, g := range groupAdminGroups {
+		if g = strings.TrimSpace(strings.ToLower(g)); g != "" {
+			ga[g] = true
+		}
+	}
+	return &RBAC{store: store, cfg: cfg, bootstrapAdmins: set, staticDefault: staticDefaultRole,
+		groupAdmins: ga, factoryID: factoryID}
 }
 
 // Effective computes the authorization state for a verified caller.
@@ -214,6 +226,21 @@ func (a *RBAC) Effective(ctx context.Context, claims *auth.Claims) *auth.Authz {
 	if out.Tenant == "" {
 		if id, err := a.store.DefaultTenantID(ctx); err == nil {
 			out.Tenant = id
+		}
+	}
+
+	// Factory scope (§22.7①): permission-independent site visibility. Group
+	// admins (designated groups or bootstrap admins) see every factory; everyone
+	// else only this instance's own site.
+	out.FactoryScope = a.factoryID
+	if a.bootstrapAdmins[strings.ToLower(claims.PreferredUsername)] ||
+		(claims.Email != "" && a.bootstrapAdmins[strings.ToLower(claims.Email)]) {
+		out.FactoryScope = auth.ScopeAll
+	}
+	for _, g := range claims.Groups {
+		if a.groupAdmins[strings.ToLower(g)] {
+			out.FactoryScope = auth.ScopeAll
+			break
 		}
 	}
 	return out

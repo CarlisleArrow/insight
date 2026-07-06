@@ -12,6 +12,7 @@ import (
 	"gitlab.siptory.com/ipas/control-plane/internal/adapter/msp"
 	"gitlab.siptory.com/ipas/control-plane/internal/auth"
 	"gitlab.siptory.com/ipas/control-plane/internal/authz"
+	"gitlab.siptory.com/ipas/control-plane/internal/config"
 	"gitlab.siptory.com/ipas/control-plane/internal/orchestrator"
 	"gitlab.siptory.com/ipas/control-plane/internal/query"
 	pg "gitlab.siptory.com/ipas/control-plane/internal/store/postgres"
@@ -22,6 +23,7 @@ import (
 type Handlers struct {
 	Log           *slog.Logger
 	Metrics       *telemetry.Metrics
+	Cfg           *config.Config // deployment role + federation settings (§22)
 	Store         *pg.Store
 	Resolver      *authz.Resolver
 	RBAC          *authz.RBAC          // effective-permission resolver (§2 DB RBAC)

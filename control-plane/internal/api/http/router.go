@@ -7,12 +7,15 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 
 	"gitlab.siptory.com/ipas/control-plane/internal/auth"
+	"gitlab.siptory.com/ipas/control-plane/internal/config"
 )
 
 // NewRouter builds the BFF route table (§11). `/healthz` and `/metrics` are
 // unauthenticated; everything under `/api` sits behind the auth boundary and
-// coarse RBAC (§2.2).
-func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
+// coarse RBAC (§2.2). cfg gates role-dependent surfaces (§22.3): the Federation
+// routes exist only on a hybrid (HQ) instance. cfg may be nil in tests →
+// factory behavior.
+func NewRouter(h *Handlers, verifier auth.Verifier, cfg *config.Config) http.Handler {
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.Recoverer)
@@ -125,6 +128,31 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 		api.With(auth.RequirePermission(auth.PermPipelinesRead)).Get("/ops/errors", h.OpsErrors)
 		api.With(auth.RequirePermission(auth.PermPipelinesRead)).Get("/ops/sla", h.OpsSla)
 
+		// AI (§20) — model registry, semantic layer, grounded analyze/assist.
+		// Always mounted: AI is factory-local on every deployment role.
+		api.With(auth.RequirePermission(auth.PermAiRead)).Get("/ai/models", h.AiListModels)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/ai/models", h.AiCreateModel)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/ai/models/test", h.AiTestModelSpec)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Put("/ai/models/{id}", h.AiUpdateModel)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Delete("/ai/models/{id}", h.AiDeleteModel)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/ai/models/{id}/test", h.AiTestModel)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Get("/ai/semantic", h.AiSemanticList)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Put("/ai/semantic/{urn}", h.AiSemanticUpsert)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/ai/semantic/compile", h.AiSemanticCompile)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Post("/ai/semantic/{urn}/test", h.AiSemanticTest)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Post("/ai/analyze", h.AiAnalyze)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Post("/ai/assist", h.AiAssist)
+
+		// Agent workflows (§21) — flow CRUD, runs, HITL approval.
+		api.With(auth.RequirePermission(auth.PermAiRead)).Get("/agent/flows", h.AgentListFlows)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/agent/flows", h.AgentCreateFlow)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Put("/agent/flows/{id}", h.AgentUpdateFlow)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Delete("/agent/flows/{id}", h.AgentDeleteFlow)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/agent/flows/{id}/run", h.AgentRunFlow)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Get("/agent/flows/{id}/runs", h.AgentListRuns)
+		api.With(auth.RequirePermission(auth.PermAiRead)).Get("/agent/runs/{runId}", h.AgentGetRun)
+		api.With(auth.RequirePermission(auth.PermAiWrite)).Post("/agent/runs/{runId}/approve", h.AgentApprove)
+
 		// Notifications (any authenticated user).
 		api.Get("/notifications", h.Notifications)
 		api.Post("/notifications/read-all", h.MarkAllNotificationsRead)
@@ -133,6 +161,7 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 
 		// Personal center (self-service, any authenticated user).
 		api.Get("/me", h.Me)
+		api.Get("/me/context", h.MeContext)
 		api.Get("/me/permissions", h.MyPermissions)
 		api.Get("/me/sessions", h.MySessions)
 		api.Delete("/me/sessions/{id}", h.DeleteMySession)
@@ -197,7 +226,33 @@ func NewRouter(h *Handlers, verifier auth.Verifier) http.Handler {
 		api.With(auth.RequirePermission(auth.PermAdmin)).Get("/admin/apikeys", h.AdminListKeys)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Post("/admin/apikeys", h.AdminCreateKey)
 		api.With(auth.RequirePermission(auth.PermAdmin)).Delete("/admin/apikeys/{id}", h.AdminDeleteKey)
+
+		// Federation surface — HQ (hybrid) only (§22.3). A factory instance
+		// never mounts these, so they 404 even when called directly. The
+		// factory-side report/command workers are background goroutines
+		// (started in main.go), not routes.
+		if cfg != nil && cfg.Insight.IsHybrid() {
+			api.With(auth.RequirePermission(auth.PermFederationAdmin)).Route("/federation", func(fed chi.Router) {
+				fed.Get("/lakehouses", h.FedListLakehouses)
+				fed.Get("/lakehouses/{id}", h.FedGetLakehouse)
+				fed.Post("/lakehouses/{id}/commands", h.FedDispatchCommand)
+				fed.Post("/lakehouses/{id}/drill", h.FedDrill) // group-admin scope enforced inside
+				fed.Get("/tower/overview", h.FedTowerOverview)
+				fed.Get("/tower/rollups", h.FedRollups)
+			})
+		}
 	})
+
+	// Federation ingest surface (§19.3/19.4) — machine calls FROM factories TO
+	// the tower. Hybrid only; gated by the shared token, not user auth (the
+	// callers are control planes, not people).
+	if cfg != nil && cfg.Insight.IsHybrid() {
+		r.Route("/federation-ingest", func(ing chi.Router) {
+			ing.Post("/report", h.FedIngestReport)
+			ing.Get("/commands", h.FedIngestCommands)
+			ing.Post("/report-result", h.FedIngestResult)
+		})
+	}
 
 	// External Data API surface (§15) — its own contract+masking boundary, NOT
 	// the internal Keycloak middleware. Auth is per-endpoint (auth_mode).

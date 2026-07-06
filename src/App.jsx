@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Theme, ToastNotification } from '@carbon/react';
 import { DataProvider } from './data/DataProvider.jsx';
+import { getMeContext } from './data/api.js';
 import Sidebar from './components/Sidebar.jsx';
 import NotificationsPanel from './components/NotificationsPanel.jsx';
 import Login from './pages/Login.jsx';
@@ -41,6 +42,18 @@ export default function App() {
   const [lang, setLang] = useState('en');
   const [toasts, setToasts] = useState([]);
   const [notifOpen, setNotifOpen] = useState(false);
+  // Deployment context (§22.8): role + capability flags from /api/me/context.
+  // Capability-gated sections (federation) stay hidden until the backend says
+  // this instance is hybrid — a factory never shows an empty Federation page.
+  const [meCtx, setMeCtx] = useState(null);
+
+  useEffect(() => {
+    if (!authed) { setMeCtx(null); return; }
+    getMeContext().then(setMeCtx).catch(() => setMeCtx(null));
+  }, [authed]);
+
+  const caps = meCtx?.capabilities || null;
+  const sectionVisible = (id) => id !== 'federation' || !!(caps && caps.federation);
 
   const notify = useCallback((t) => {
     const id = Math.random().toString(36).slice(2);
@@ -60,7 +73,7 @@ export default function App() {
   }
 
   const logout = () => { setAuthed(false); setNav(null); setProfileTab(null); setNotifOpen(false); };
-  const Section = nav && SECTIONS[nav] ? SECTIONS[nav] : null;
+  const Section = nav && SECTIONS[nav] && sectionVisible(nav) ? SECTIONS[nav] : null;
 
   let content;
   if (nav === '__profile') content = <Profile tab={profileTab} lang={lang} notify={notify} onNavigate={selectNav} />;
@@ -73,6 +86,7 @@ export default function App() {
       <div className="ip-shell">
         <Sidebar
           current={nav}
+          caps={caps}
           onSelect={selectNav}
           collapsed={collapsed}
           onToggle={() => setCollapsed((c) => !c)}

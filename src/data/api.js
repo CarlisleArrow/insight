@@ -217,8 +217,44 @@ export const markNotificationRead = (id) => req(`/notifications/${encodeURICompo
 export const markAllNotificationsRead = () => req('/notifications/read-all', { method: 'POST' });
 export const deleteNotification = (id) => req(`/notifications/${encodeURIComponent(id)}`, { method: 'DELETE' });
 
+/* ---------- AI (§20 models · semantic · grounded analyze) ---------- */
+export const aiModels = resource('/ai/models');
+// Probe a SAVED model by id (stamps last_tested on success).
+export const testAiModel = (id) => req(`/ai/models/${encodeURIComponent(id)}/test`, { method: 'POST' });
+// Probe an UNSAVED model spec from the registration modal — nothing stored.
+export const testAiModelSpec = (spec) => req('/ai/models/test', { method: 'POST', body: JSON.stringify(spec) });
+export const getAiSemantic = () => req('/ai/semantic');
+export const saveAiSemantic = (urn, body) => req(`/ai/semantic/${encodeURIComponent(urn)}`, { method: 'PUT', body: JSON.stringify(body) });
+export const compileAiSemantic = () => req('/ai/semantic/compile', { method: 'POST' });
+export const testAiSemantic = (urn) => req(`/ai/semantic/${encodeURIComponent(urn)}/test`, { method: 'POST' });
+// Grounded Q&A: every answer cites the masked gold rows it was based on.
+export const aiAnalyze = (body) => req('/ai/analyze', { method: 'POST', body: JSON.stringify(body) });
+export const aiAssist = (body) => req('/ai/assist', { method: 'POST', body: JSON.stringify(body) });
+
+/* ---------- Agent workflows (§21) ---------- */
+export const agentFlows = resource('/agent/flows');
+// Runs the flow synchronously up to completion or the first approval pause;
+// returns the run with its per-node trace.
+export const runAgentFlow = (id) => req(`/agent/flows/${encodeURIComponent(id)}/run`, { method: 'POST' });
+export const getAgentRuns = (id) => req(`/agent/flows/${encodeURIComponent(id)}/runs`);
+export const getAgentRun = (runId) => req(`/agent/runs/${encodeURIComponent(runId)}`);
+export const approveAgentRun = (runId, approve = true) =>
+  req(`/agent/runs/${encodeURIComponent(runId)}/approve`, { method: 'POST', body: JSON.stringify({ approve }) });
+
+/* ---------- Federation (§19, hybrid/HQ only — 404 on a factory) ---------- */
+export const getFedLakehouses = () => req('/federation/lakehouses');
+export const getFedLakehouse = (id) => req(`/federation/lakehouses/${encodeURIComponent(id)}`);
+export const dispatchFedCommand = (id, body) => req(`/federation/lakehouses/${encodeURIComponent(id)}/commands`, { method: 'POST', body: JSON.stringify(body) });
+export const getFedOverview = () => req('/federation/tower/overview');
+export const getFedRollups = () => req('/federation/tower/rollups');
+// Group-admin only: real-time drill into a site's Trino.
+export const fedDrill = (id, sql) => req(`/federation/lakehouses/${encodeURIComponent(id)}/drill`, { method: 'POST', body: JSON.stringify({ sql }) });
+
 /* ---------- Personal center (me) ---------- */
 export const getMe = () => req('/me');
+// getMeContext returns the deployment role + capability flags (§22.8) that
+// drive role-conditional navigation (Federation only on a hybrid/HQ instance).
+export const getMeContext = () => req('/me/context');
 export const getMyPermissions = () => req('/me/permissions');
 export const getMySessions = () => req('/me/sessions');
 export const deleteMySession = (id) => req(`/me/sessions/${encodeURIComponent(id)}`, { method: 'DELETE' });

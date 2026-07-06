@@ -13,14 +13,44 @@ import (
 
 // Config is the fully-resolved configuration tree.
 type Config struct {
-	Server   Server   `mapstructure:"server"`
-	Dev      Dev      `mapstructure:"dev"`
-	Auth     Auth     `mapstructure:"auth"`
-	Keycloak Keycloak `mapstructure:"keycloak"`
-	Postgres Postgres `mapstructure:"postgres"`
-	Rewrite  Rewrite  `mapstructure:"rewrite"`
-	Adapters Adapters `mapstructure:"adapters"`
+	Server     Server     `mapstructure:"server"`
+	Dev        Dev        `mapstructure:"dev"`
+	Auth       Auth       `mapstructure:"auth"`
+	Keycloak   Keycloak   `mapstructure:"keycloak"`
+	Postgres   Postgres   `mapstructure:"postgres"`
+	Rewrite    Rewrite    `mapstructure:"rewrite"`
+	Adapters   Adapters   `mapstructure:"adapters"`
+	Insight    Insight    `mapstructure:"insight"`
+	Federation Federation `mapstructure:"federation"`
 }
+
+// Deployment roles (§22.2). A factory instance owns only its own site's data;
+// a hybrid instance is a factory PLUS the group control tower (Federation UI).
+const (
+	RoleFactory = "factory"
+	RoleHybrid  = "hybrid"
+)
+
+// Insight holds the deployment-role identity of THIS instance (§22.2).
+type Insight struct {
+	Role      string `mapstructure:"role"`       // "factory" | "hybrid"; env INSIGHT_ROLE; default "factory"
+	FactoryID string `mapstructure:"factory_id"` // this site's id, e.g. "fab-a"; env INSIGHT_FACTORY_ID
+	Version   string `mapstructure:"version"`    // build/blueprint version, informational
+}
+
+// IsHybrid reports whether this instance also serves the group control tower.
+func (i Insight) IsHybrid() bool { return i.Role == RoleHybrid }
+
+// Federation configures how a factory reports up, and (hybrid) the tower.
+type Federation struct {
+	TowerEndpoint  string `mapstructure:"tower_endpoint"`   // factory→HQ report target; empty on hybrid
+	SharedToken    string `mapstructure:"shared_token"`     // env-only CP_FEDERATION_SHARED_TOKEN; gates the ingest surface
+	ReportEverySec int    `mapstructure:"report_every_sec"` // default 60
+	PullEverySec   int    `mapstructure:"pull_every_sec"`   // command pull interval, default 30
+}
+
+func (f Federation) ReportEvery() time.Duration { return time.Duration(f.ReportEverySec) * time.Second }
+func (f Federation) PullEvery() time.Duration   { return time.Duration(f.PullEverySec) * time.Second }
 
 // Auth configures the DB-backed RBAC fallback (§2). Because Keycloak carries no
 // groups, DefaultRole gives every authenticated user a baseline (e.g. "viewer")
@@ -31,6 +61,10 @@ type Config struct {
 type Auth struct {
 	DefaultRole     string   `mapstructure:"default_role"`
 	BootstrapAdmins []string `mapstructure:"bootstrap_admins"`
+	// GroupAdminGroups lists Keycloak groups whose members get factory scope
+	// "all" (group administrators, §22.7①); everyone else is scoped to this
+	// instance's insight.factory_id.
+	GroupAdminGroups []string `mapstructure:"group_admin_groups"`
 }
 
 type Server struct {
@@ -143,15 +177,25 @@ func Load(path string) (*Config, error) {
 	// Bind secret keys explicitly so AutomaticEnv resolves them even though they
 	// are absent from the YAML file.
 	for _, k := range []string{
-		"auth.default_role", "auth.bootstrap_admins",
+		"auth.default_role", "auth.bootstrap_admins", "auth.group_admin_groups",
 		"keycloak.client_secret", "postgres.password",
 		"adapters.clickhouse_password", "adapters.datahub_token", "adapters.sentry_token",
 		"adapters.airflow_auth", "adapters.opensearch_auth",
 		"adapters.msp_api_url", "adapters.msp_api_key",
 		"adapters.msp_wechat_channel_id", "adapters.msp_wechat_template_id",
+		"federation.tower_endpoint", "federation.shared_token", // CP_FEDERATION_*
 	} {
 		_ = v.BindEnv(k)
 	}
+	// Deployment identity uses unprefixed env names by convention (§22.2), with
+	// the CP_-prefixed forms accepted too.
+	_ = v.BindEnv("insight.role", "INSIGHT_ROLE", "CP_INSIGHT_ROLE")
+	_ = v.BindEnv("insight.factory_id", "INSIGHT_FACTORY_ID", "CP_INSIGHT_FACTORY_ID")
+	_ = v.BindEnv("insight.version", "INSIGHT_VERSION", "CP_INSIGHT_VERSION")
+
+	v.SetDefault("insight.role", RoleFactory)
+	v.SetDefault("federation.report_every_sec", 60)
+	v.SetDefault("federation.pull_every_sec", 30)
 
 	if err := v.ReadInConfig(); err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -160,6 +204,9 @@ func Load(path string) (*Config, error) {
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
 		return nil, fmt.Errorf("unmarshal config: %w", err)
+	}
+	if cfg.Insight.Role != RoleFactory && cfg.Insight.Role != RoleHybrid {
+		return nil, fmt.Errorf("insight.role must be %q or %q, got %q", RoleFactory, RoleHybrid, cfg.Insight.Role)
 	}
 	return &cfg, nil
 }

@@ -16,9 +16,12 @@ const HELP_ITEMS = [
 ];
 
 export default function Sidebar({
-  current, onSelect, collapsed, onToggle, onHome, lang, onLang,
+  current, caps, onSelect, collapsed, onToggle, onHome, lang, onLang,
   onLogout, onNotifications, onProfile, onAppearance,
 }) {
+  // Capability-gated nav (§22.8): Federation appears only when the backend
+  // reports this instance is hybrid (group HQ).
+  const navItems = IPAS_NAV.filter((n) => n.id !== 'federation' || !!(caps && caps.federation));
   const [menu, setMenu] = useState(null); // 'user' | 'help' | null
   const footRef = useRef(null);
   const { items: notifications } = useCollection('notifications');
@@ -45,7 +48,7 @@ export default function Sidebar({
         </a>
 
         <div className="ip-nav">
-          {IPAS_NAV.map((n) => (
+          {navItems.map((n) => (
             <button
               key={n.id}
               className={`ip-navitem ${current === n.id ? 'active' : ''}`}

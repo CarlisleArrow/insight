@@ -73,7 +73,7 @@ export default function Admin({ notify, lang }) {
         searchPlaceholder={`${tr(lang, 'Search')} ${label.toLowerCase()}`}
         actions={(
           <>
-            <Button kind="ghost" size="lg" hasIconOnly renderIcon={iconFor('filter')} iconDescription={tr(lang, 'Filter')} />
+            <Button kind="ghost" style={{background:"transparent"}} size="lg" hasIconOnly renderIcon={iconFor('filter')} iconDescription={tr(lang, 'Filter')} />
             {tab === 'audit' && <Button kind="ghost" size="lg" hasIconOnly renderIcon={iconFor('download')} iconDescription={tr(lang, 'Export CSV')} onClick={() => { exportCsv('audit-log.csv', d.cols, coll.items); notify && notify({ kind: 'success', title: tr(lang, 'Audit log exported.') }); }} />}
             {d.create && schema && <Button kind="primary" size="lg" renderIcon={iconFor('add')} onClick={() => setModal({ mode: 'create' })}>{tr(lang, d.create)}</Button>}
           </>
